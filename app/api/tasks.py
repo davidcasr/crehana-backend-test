@@ -1,17 +1,20 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session
 
 from ..application.dtos import (
     TaskCreateRequest,
     TaskUpdateRequest,
     TaskResponse,
     TaskStatusUpdateRequest,
+    TaskAssignmentRequest,
     TasksWithStatsResponse,
+    UserResponse,
 )
 from ..application.use_cases.task import TaskUseCases
-from ..dependencies import get_db, get_task_use_cases
+from ..application.use_cases.user import UserUseCases
+from ..dependencies import get_task_use_cases, get_user_use_cases
 from ..domain.exceptions import (
+    EntityNotFoundException,
     TaskListNotFoundException,
     TaskNotFoundException,
     TaskTitleAlreadyExistsException,
@@ -29,7 +32,10 @@ router = APIRouter(prefix="/task-lists", tags=["Tasks"])
     status_code=status.HTTP_201_CREATED,
 )
 def create_task(
-    task_list_id: int, request: TaskCreateRequest, db: Session = Depends(get_db)
+    task_list_id: int, 
+    request: TaskCreateRequest, 
+    task_use_cases: TaskUseCases = Depends(get_task_use_cases),
+    user_use_cases: UserUseCases = Depends(get_user_use_cases),
 ):
     """
     Create a new task in a task list.
@@ -42,25 +48,34 @@ def create_task(
     - **priority**: Task priority (optional, default: medium)
         - Available values: low, medium, high, urgent
     - **due_date**: Task due date (optional, ISO 8601 format)
+    - **assigned_user_id**: ID of the user to assign this task to (optional)
 
     **Business Rules:**
     - Task title must be unique within the task list
     - Due date cannot be in the past
     - Task list must exist
+    - Assigned user must exist (if provided)
     """
     try:
-        use_cases = get_task_use_cases(db)
-        task_entity = use_cases.create_task(
+        # Get assigned user if provided (for response)
+        assigned_user = None
+        if request.assigned_user_id:
+            assigned_user = user_use_cases.get_user_by_id(request.assigned_user_id)
+        
+        task_entity = task_use_cases.create_task(
             task_list_id=task_list_id,
             title=request.title,
             description=request.description,
             status=request.status,
             priority=request.priority,
             due_date=request.due_date,
+            assigned_user_id=request.assigned_user_id,
         )
-        return TaskResponse.from_entity(task_entity)
+        return TaskResponse.from_entity(task_entity, assigned_user)
 
     except TaskListNotFoundException as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except EntityNotFoundException as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except TaskTitleAlreadyExistsException as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
@@ -86,7 +101,12 @@ def get_tasks_by_list(
         None,
         description="Filter by task priority. Available values: low, medium, high, urgent",
     ),
-    db: Session = Depends(get_db),
+    assigned_user_id: Optional[int] = Query(
+        None,
+        description="Filter by assigned user ID",
+    ),
+    task_use_cases: TaskUseCases = Depends(get_task_use_cases),
+    user_use_cases: UserUseCases = Depends(get_user_use_cases),
 ):
     """
     Get all tasks for a task list with optional filters and completion statistics.
@@ -110,21 +130,46 @@ def get_tasks_by_list(
         - `high`: High priority tasks
         - `urgent`: Urgent priority tasks
 
+    - **assigned_user_id**: Filter tasks by assigned user ID (optional)
+
     **Note:** The completion percentage is calculated based on ALL tasks in the list,
     not just the filtered results.
     """
     try:
-        use_cases = get_task_use_cases(db)
-        result = use_cases.get_tasks_with_stats(
-            task_list_id=task_list_id, status=status, priority=priority
+        result = task_use_cases.get_tasks_with_stats(
+            task_list_id=task_list_id, 
+            status=status, 
+            priority=priority,
+            assigned_user_id=assigned_user_id
         )
-        return TasksWithStatsResponse.from_tasks_and_task_list(
+        
+        # Get assigned users for tasks that have them
+        tasks_with_users = []
+        for task in result["tasks"]:
+            assigned_user = None
+            if task.assigned_user_id:
+                try:
+                    assigned_user = user_use_cases.get_user_by_id(task.assigned_user_id)
+                except EntityNotFoundException:
+                    # User might have been deleted, continue without user info
+                    pass
+            tasks_with_users.append(TaskResponse.from_entity(task, assigned_user))
+        
+        # Create custom response with user information
+        response_data = TasksWithStatsResponse.from_tasks_and_task_list(
             tasks=result["tasks"],
             task_list=result["task_list"],
             completion_percentage=result["completion_percentage"],
         )
+        
+        # Replace tasks with ones that include user information
+        response_data.tasks = tasks_with_users
+        
+        return response_data
 
     except TaskListNotFoundException as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except EntityNotFoundException as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except Exception as e:
         raise HTTPException(
@@ -134,11 +179,15 @@ def get_tasks_by_list(
 
 
 @router.get("/{task_list_id}/tasks/{task_id}", response_model=TaskResponse)
-def get_task(task_list_id: int, task_id: int, db: Session = Depends(get_db)):
-    """Get a task by ID."""
+def get_task(
+    task_list_id: int, 
+    task_id: int, 
+    task_use_cases: TaskUseCases = Depends(get_task_use_cases),
+    user_use_cases: UserUseCases = Depends(get_user_use_cases),
+):
+    """Get a task by ID including assigned user information."""
     try:
-        use_cases = get_task_use_cases(db)
-        task_entity = use_cases.get_task_by_id(task_id)
+        task_entity = task_use_cases.get_task_by_id(task_id)
 
         # Verify the task belongs to the specified task list
         if task_entity.task_list_id != task_list_id:
@@ -147,7 +196,16 @@ def get_task(task_list_id: int, task_id: int, db: Session = Depends(get_db)):
                 detail=f"Task {task_id} not found in task list {task_list_id}",
             )
 
-        return TaskResponse.from_entity(task_entity)
+        # Get assigned user if exists
+        assigned_user = None
+        if task_entity.assigned_user_id:
+            try:
+                assigned_user = user_use_cases.get_user_by_id(task_entity.assigned_user_id)
+            except EntityNotFoundException:
+                # User might have been deleted, continue without user info
+                pass
+
+        return TaskResponse.from_entity(task_entity, assigned_user)
 
     except TaskNotFoundException as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
@@ -163,7 +221,8 @@ def update_task(
     task_list_id: int,
     task_id: int,
     request: TaskUpdateRequest,
-    db: Session = Depends(get_db),
+    task_use_cases: TaskUseCases = Depends(get_task_use_cases),
+    user_use_cases: UserUseCases = Depends(get_user_use_cases),
 ):
     """
     Update a task.
@@ -176,34 +235,46 @@ def update_task(
     - **priority**: Task priority
         - Available values: low, medium, high, urgent
     - **due_date**: Task due date (ISO 8601 format)
+    - **assigned_user_id**: ID of the user to assign this task to (use null to unassign)
 
     **Business Rules:**
     - Task must exist and belong to the specified task list
     - New title must be unique within the task list (if provided)
     - Due date cannot be in the past (if provided)
+    - Assigned user must exist (if provided and not null)
     """
     try:
-        use_cases = get_task_use_cases(db)
-
         # First verify the task exists and belongs to the task list
-        existing_task = use_cases.get_task_by_id(task_id)
+        existing_task = task_use_cases.get_task_by_id(task_id)
         if existing_task.task_list_id != task_list_id:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Task {task_id} not found in task list {task_list_id}",
             )
 
-        task_entity = use_cases.update_task(
+        task_entity = task_use_cases.update_task(
             task_id=task_id,
             title=request.title,
             description=request.description,
             status=request.status,
             priority=request.priority,
             due_date=request.due_date,
+            assigned_user_id=request.assigned_user_id,
         )
-        return TaskResponse.from_entity(task_entity)
+        
+        # Get assigned user if exists
+        assigned_user = None
+        if task_entity.assigned_user_id:
+            try:
+                assigned_user = user_use_cases.get_user_by_id(task_entity.assigned_user_id)
+            except EntityNotFoundException:
+                pass
+                
+        return TaskResponse.from_entity(task_entity, assigned_user)
 
     except TaskNotFoundException as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except EntityNotFoundException as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except TaskTitleAlreadyExistsException as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
@@ -223,7 +294,8 @@ def update_task_status(
     task_list_id: int,
     task_id: int,
     request: TaskStatusUpdateRequest,
-    db: Session = Depends(get_db),
+    task_use_cases: TaskUseCases = Depends(get_task_use_cases),
+    user_use_cases: UserUseCases = Depends(get_user_use_cases),
 ):
     """
     Update task status.
@@ -236,20 +308,77 @@ def update_task_status(
     - Task must exist and belong to the specified task list
     """
     try:
-        use_cases = get_task_use_cases(db)
-
         # First verify the task exists and belongs to the task list
-        existing_task = use_cases.get_task_by_id(task_id)
+        existing_task = task_use_cases.get_task_by_id(task_id)
         if existing_task.task_list_id != task_list_id:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Task {task_id} not found in task list {task_list_id}",
             )
 
-        task_entity = use_cases.update_task_status(task_id, request.status)
-        return TaskResponse.from_entity(task_entity)
+        task_entity = task_use_cases.update_task_status(task_id, request.status)
+        
+        # Get assigned user if exists
+        assigned_user = None
+        if task_entity.assigned_user_id:
+            try:
+                assigned_user = user_use_cases.get_user_by_id(task_entity.assigned_user_id)
+            except EntityNotFoundException:
+                pass
+                
+        return TaskResponse.from_entity(task_entity, assigned_user)
 
     except TaskNotFoundException as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error",
+        )
+
+
+@router.patch("/{task_list_id}/tasks/{task_id}/assign", response_model=TaskResponse)
+def assign_task_to_user(
+    task_list_id: int,
+    task_id: int,
+    request: TaskAssignmentRequest,
+    task_use_cases: TaskUseCases = Depends(get_task_use_cases),
+    user_use_cases: UserUseCases = Depends(get_user_use_cases),
+):
+    """
+    Assign or unassign a task to a user.
+
+    **Request Body Fields:**
+    - **assigned_user_id**: ID of the user to assign (use null to unassign)
+
+    **Business Rules:**
+    - Task must exist and belong to the specified task list
+    - User must exist (if assigning)
+    """
+    try:
+        # First verify the task exists and belongs to the task list
+        existing_task = task_use_cases.get_task_by_id(task_id)
+        if existing_task.task_list_id != task_list_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Task {task_id} not found in task list {task_list_id}",
+            )
+
+        task_entity = task_use_cases.assign_task_to_user(task_id, request.assigned_user_id)
+        
+        # Get assigned user if exists
+        assigned_user = None
+        if task_entity.assigned_user_id:
+            try:
+                assigned_user = user_use_cases.get_user_by_id(task_entity.assigned_user_id)
+            except EntityNotFoundException:
+                pass
+                
+        return TaskResponse.from_entity(task_entity, assigned_user)
+
+    except TaskNotFoundException as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except EntityNotFoundException as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except Exception as e:
         raise HTTPException(
@@ -261,22 +390,56 @@ def update_task_status(
 @router.delete(
     "/{task_list_id}/tasks/{task_id}", status_code=status.HTTP_204_NO_CONTENT
 )
-def delete_task(task_list_id: int, task_id: int, db: Session = Depends(get_db)):
+def delete_task(
+    task_list_id: int, 
+    task_id: int, 
+    task_use_cases: TaskUseCases = Depends(get_task_use_cases),
+):
     """Delete a task."""
     try:
-        use_cases = get_task_use_cases(db)
-
         # First verify the task exists and belongs to the task list
-        existing_task = use_cases.get_task_by_id(task_id)
+        existing_task = task_use_cases.get_task_by_id(task_id)
         if existing_task.task_list_id != task_list_id:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Task {task_id} not found in task list {task_list_id}",
             )
 
-        use_cases.delete_task(task_id)
+        task_use_cases.delete_task(task_id)
 
     except TaskNotFoundException as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error",
+        )
+
+
+# Additional endpoint to get all tasks assigned to a specific user across all task lists
+@router.get("/users/{user_id}/tasks", response_model=List[TaskResponse])
+def get_tasks_by_user(
+    user_id: int,
+    task_use_cases: TaskUseCases = Depends(get_task_use_cases),
+    user_use_cases: UserUseCases = Depends(get_user_use_cases),
+):
+    """
+    Get all tasks assigned to a specific user across all task lists.
+    
+    **Path Parameters:**
+    - **user_id**: ID of the user whose tasks to retrieve
+    
+    **Business Rules:**
+    - User must exist
+    """
+    try:
+        # Verify user exists
+        user = user_use_cases.get_user_by_id(user_id)
+        
+        tasks = task_use_cases.get_tasks_by_user(user_id)
+        return [TaskResponse.from_entity(task, user) for task in tasks]
+
+    except EntityNotFoundException as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except Exception as e:
         raise HTTPException(

@@ -2,7 +2,21 @@ from datetime import datetime
 from typing import List, Optional
 from pydantic import BaseModel, Field
 
-from .enums import TaskStatus, TaskPriority
+from .enums import TaskStatus, TaskPriority, UserStatus
+
+
+class User(BaseModel):
+    """User entity."""
+    id: Optional[int] = None
+    username: str = Field(..., min_length=3, max_length=50, description="Username")
+    email: str = Field(..., max_length=100, description="User email")
+    full_name: str = Field(..., min_length=1, max_length=100, description="User full name")
+    status: UserStatus = Field(default=UserStatus.ACTIVE, description="User status")
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
 
 
 class TaskList(BaseModel):
@@ -37,6 +51,7 @@ class Task(BaseModel):
     task_list_id: int = Field(
         ..., description="ID of the task list this task belongs to"
     )
+    assigned_user_id: Optional[int] = Field(None, description="ID of the user assigned to this task")
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 

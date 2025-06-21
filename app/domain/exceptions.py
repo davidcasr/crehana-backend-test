@@ -4,6 +4,24 @@ class DomainException(Exception):
     pass
 
 
+class EntityNotFoundException(DomainException):
+    """Raised when an entity is not found."""
+
+    pass
+
+
+class InvalidDataException(DomainException):
+    """Raised when invalid data is provided."""
+
+    pass
+
+
+class DuplicateEntityException(DomainException):
+    """Raised when trying to create a duplicate entity."""
+
+    pass
+
+
 class TaskListNotFoundException(DomainException):
     """Raised when a task list is not found."""
 
@@ -12,6 +30,12 @@ class TaskListNotFoundException(DomainException):
 
 class TaskNotFoundException(DomainException):
     """Raised when a task is not found."""
+
+    pass
+
+
+class UserNotFoundException(DomainException):
+    """Raised when a user is not found."""
 
     pass
 
@@ -57,3 +81,6 @@ TaskListNotFoundError = TaskListNotFoundException
 TaskNotFoundError = TaskNotFoundException
 TaskListAlreadyExistsError = TaskListNameAlreadyExistsException
 TaskAlreadyExistsError = TaskTitleAlreadyExistsException
+
+# New aliases for user-related exceptions
+UserNotFoundError = UserNotFoundException

@@ -3,8 +3,9 @@ from typing import List, Optional
 
 from ...domain.models.entities import Task
 from ...domain.models.enums import TaskStatus, TaskPriority
-from ...domain.repositories import TaskRepository, TaskListRepository
+from ...domain.repositories import TaskRepository, TaskListRepository, UserRepository
 from ...domain.exceptions import (
+    EntityNotFoundException,
     TaskListNotFoundException,
     TaskNotFoundException,
     TaskTitleAlreadyExistsException,
@@ -16,10 +17,14 @@ class TaskUseCases:
     """Use cases for task management."""
 
     def __init__(
-        self, task_repository: TaskRepository, task_list_repository: TaskListRepository
+        self, 
+        task_repository: TaskRepository, 
+        task_list_repository: TaskListRepository,
+        user_repository: UserRepository
     ):
         self.task_repository = task_repository
         self.task_list_repository = task_list_repository
+        self.user_repository = user_repository
 
     def create_task(
         self,
@@ -29,6 +34,7 @@ class TaskUseCases:
         status: TaskStatus = TaskStatus.PENDING,
         priority: TaskPriority = TaskPriority.MEDIUM,
         due_date: datetime = None,
+        assigned_user_id: Optional[int] = None,
     ) -> Task:
         """Create a new task in a task list."""
         # Business validation: check if task list exists
@@ -37,6 +43,12 @@ class TaskUseCases:
             raise TaskListNotFoundException(
                 f"Task list with ID {task_list_id} not found"
             )
+
+        # Business validation: check if assigned user exists
+        if assigned_user_id:
+            user = self.user_repository.get_by_id(assigned_user_id)
+            if not user:
+                raise EntityNotFoundException(f"User with ID {assigned_user_id} not found")
 
         # Business validation: check if title already exists in the same list
         if self.task_repository.exists_by_title_in_list(title, task_list_id):
@@ -60,6 +72,7 @@ class TaskUseCases:
             priority=priority,
             due_date=due_date,
             task_list_id=task_list_id,
+            assigned_user_id=assigned_user_id,
             created_at=datetime.utcnow(),
         )
 
@@ -78,6 +91,7 @@ class TaskUseCases:
         task_list_id: int,
         status: Optional[TaskStatus] = None,
         priority: Optional[TaskPriority] = None,
+        assigned_user_id: Optional[int] = None,
     ) -> List[Task]:
         """Get all tasks for a task list with optional filters."""
         # Business validation: check if task list exists
@@ -87,15 +101,30 @@ class TaskUseCases:
                 f"Task list with ID {task_list_id} not found"
             )
 
+        # Business validation: check if assigned user exists (if filtering by user)
+        if assigned_user_id:
+            user = self.user_repository.get_by_id(assigned_user_id)
+            if not user:
+                raise EntityNotFoundException(f"User with ID {assigned_user_id} not found")
+
         # Get tasks with filters
-        if status or priority:
+        if status or priority or assigned_user_id:
             tasks = self.task_repository.get_filtered_tasks(
-                task_list_id, status=status, priority=priority
+                task_list_id, status=status, priority=priority, assigned_user_id=assigned_user_id
             )
         else:
             tasks = self.task_repository.get_by_task_list_id(task_list_id)
 
         return tasks
+
+    def get_tasks_by_user(self, user_id: int) -> List[Task]:
+        """Get all tasks assigned to a specific user."""
+        # Business validation: check if user exists
+        user = self.user_repository.get_by_id(user_id)
+        if not user:
+            raise EntityNotFoundException(f"User with ID {user_id} not found")
+
+        return self.task_repository.get_by_assigned_user_id(user_id)
 
     def update_task(
         self,
@@ -105,11 +134,18 @@ class TaskUseCases:
         status: TaskStatus = None,
         priority: TaskPriority = None,
         due_date: datetime = None,
+        assigned_user_id: Optional[int] = None,
     ) -> Task:
         """Update a task."""
         task = self.task_repository.get_by_id(task_id)
         if not task:
             raise TaskNotFoundException(f"Task with ID {task_id} not found")
+
+        # Business validation: check if assigned user exists
+        if assigned_user_id is not None and assigned_user_id != 0:
+            user = self.user_repository.get_by_id(assigned_user_id)
+            if not user:
+                raise EntityNotFoundException(f"User with ID {assigned_user_id} not found")
 
         # Business validation: check if new title already exists in the same list
         if title and title != task.title:
@@ -140,6 +176,9 @@ class TaskUseCases:
             task.priority = priority
         if due_date is not None:
             task.due_date = due_date
+        if assigned_user_id is not None:
+            # Allow setting to None/null to unassign
+            task.assigned_user_id = assigned_user_id if assigned_user_id != 0 else None
 
         task.updated_at = datetime.utcnow()
 
@@ -155,6 +194,20 @@ class TaskUseCases:
         updated_task = self.task_repository.update_status(task_id, status)
         return updated_task
 
+    def assign_task_to_user(self, task_id: int, user_id: Optional[int]) -> Task:
+        """Assign or unassign a task to a user."""
+        task = self.task_repository.get_by_id(task_id)
+        if not task:
+            raise TaskNotFoundException(f"Task with ID {task_id} not found")
+
+        # Business validation: check if user exists (if assigning)
+        if user_id:
+            user = self.user_repository.get_by_id(user_id)
+            if not user:
+                raise EntityNotFoundException(f"User with ID {user_id} not found")
+
+        return self.task_repository.assign_user(task_id, user_id)
+
     def delete_task(self, task_id: int) -> bool:
         """Delete a task."""
         task = self.task_repository.get_by_id(task_id)
@@ -168,6 +221,7 @@ class TaskUseCases:
         task_list_id: int,
         status: Optional[TaskStatus] = None,
         priority: Optional[TaskPriority] = None,
+        assigned_user_id: Optional[int] = None,
     ) -> dict:
         """Get tasks for a task list with completion statistics."""
         from ...domain.models.enums import TaskStatus as StatusEnum
@@ -179,10 +233,16 @@ class TaskUseCases:
                 f"Task list with ID {task_list_id} not found"
             )
 
+        # Business validation: check if assigned user exists (if filtering by user)
+        if assigned_user_id:
+            user = self.user_repository.get_by_id(assigned_user_id)
+            if not user:
+                raise EntityNotFoundException(f"User with ID {assigned_user_id} not found")
+
         # Get filtered tasks
-        if status or priority:
+        if status or priority or assigned_user_id:
             filtered_tasks = self.task_repository.get_filtered_tasks(
-                task_list_id, status=status, priority=priority
+                task_list_id, status=status, priority=priority, assigned_user_id=assigned_user_id
             )
         else:
             filtered_tasks = self.task_repository.get_by_task_list_id(task_list_id)

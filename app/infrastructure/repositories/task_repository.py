@@ -23,6 +23,7 @@ class SQLTaskRepository(TaskRepository):
             priority=task.priority,
             due_date=task.due_date,
             task_list_id=task.task_list_id,
+            assigned_user_id=task.assigned_user_id,
             created_at=task.created_at,
             updated_at=task.updated_at,
         )
@@ -52,11 +53,22 @@ class SQLTaskRepository(TaskRepository):
 
         return [self._to_entity(db_task) for db_task in db_tasks]
 
+    def get_by_assigned_user_id(self, user_id: int) -> List[Task]:
+        """Get all tasks assigned to a specific user."""
+        db_tasks = (
+            self.db.query(TaskModel)
+            .filter(TaskModel.assigned_user_id == user_id)
+            .all()
+        )
+
+        return [self._to_entity(db_task) for db_task in db_tasks]
+
     def get_filtered_tasks(
         self,
         task_list_id: int,
         status: Optional[TaskStatus] = None,
         priority: Optional[TaskPriority] = None,
+        assigned_user_id: Optional[int] = None
     ) -> List[Task]:
         """Get filtered tasks for a task list."""
         query = self.db.query(TaskModel).filter(TaskModel.task_list_id == task_list_id)
@@ -66,6 +78,9 @@ class SQLTaskRepository(TaskRepository):
 
         if priority:
             query = query.filter(TaskModel.priority == priority)
+
+        if assigned_user_id:
+            query = query.filter(TaskModel.assigned_user_id == assigned_user_id)
 
         db_tasks = query.all()
         return [self._to_entity(db_task) for db_task in db_tasks]
@@ -83,6 +98,7 @@ class SQLTaskRepository(TaskRepository):
         db_task.status = task.status
         db_task.priority = task.priority
         db_task.due_date = task.due_date
+        db_task.assigned_user_id = task.assigned_user_id
         db_task.updated_at = task.updated_at
 
         self.db.commit()
@@ -114,6 +130,19 @@ class SQLTaskRepository(TaskRepository):
 
         return self._to_entity(db_task)
 
+    def assign_user(self, task_id: int, user_id: Optional[int]) -> Task:
+        """Assign or unassign a user to a task."""
+        db_task = self.db.query(TaskModel).filter(TaskModel.id == task_id).first()
+
+        if not db_task:
+            raise ValueError(f"Task with id {task_id} not found")
+
+        db_task.assigned_user_id = user_id
+        self.db.commit()
+        self.db.refresh(db_task)
+
+        return self._to_entity(db_task)
+
     def exists_by_title_in_list(
         self, title: str, task_list_id: int, exclude_id: Optional[int] = None
     ) -> bool:
@@ -137,6 +166,7 @@ class SQLTaskRepository(TaskRepository):
             priority=db_task.priority,
             due_date=db_task.due_date,
             task_list_id=db_task.task_list_id,
+            assigned_user_id=db_task.assigned_user_id,
             created_at=db_task.created_at,
             updated_at=db_task.updated_at,
         )

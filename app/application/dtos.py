@@ -2,7 +2,54 @@ from datetime import datetime
 from typing import List, Optional
 from pydantic import BaseModel, Field
 
-from ..domain.models.enums import TaskStatus, TaskPriority
+from ..domain.models.enums import TaskStatus, TaskPriority, UserStatus
+
+
+# User DTOs
+class UserCreateRequest(BaseModel):
+    """Request DTO for creating a user."""
+
+    username: str = Field(..., min_length=3, max_length=50, description="Username")
+    email: str = Field(..., max_length=100, description="User email")
+    full_name: str = Field(..., min_length=1, max_length=100, description="User full name")
+    status: UserStatus = Field(default=UserStatus.ACTIVE, description="User status")
+
+
+class UserUpdateRequest(BaseModel):
+    """Request DTO for updating a user."""
+
+    username: Optional[str] = Field(None, min_length=3, max_length=50, description="Username")
+    email: Optional[str] = Field(None, max_length=100, description="User email")
+    full_name: Optional[str] = Field(None, min_length=1, max_length=100, description="User full name")
+    status: Optional[UserStatus] = Field(None, description="User status")
+
+
+class UserResponse(BaseModel):
+    """Response DTO for user."""
+
+    id: int
+    username: str
+    email: str
+    full_name: str
+    status: UserStatus
+    created_at: datetime
+    updated_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+    @classmethod
+    def from_entity(cls, user):
+        """Create response from User entity."""
+        return cls(
+            id=user.id,
+            username=user.username,
+            email=user.email,
+            full_name=user.full_name,
+            status=user.status,
+            created_at=user.created_at,
+            updated_at=user.updated_at,
+        )
 
 
 class TaskListCreateRequest(BaseModel):
@@ -63,6 +110,7 @@ class TaskCreateRequest(BaseModel):
         default=TaskPriority.MEDIUM, description="Task priority"
     )
     due_date: Optional[datetime] = Field(None, description="Task due date")
+    assigned_user_id: Optional[int] = Field(None, description="ID of the user assigned to this task")
 
 
 class TaskUpdateRequest(BaseModel):
@@ -77,6 +125,7 @@ class TaskUpdateRequest(BaseModel):
     status: Optional[TaskStatus] = Field(None, description="Task status")
     priority: Optional[TaskPriority] = Field(None, description="Task priority")
     due_date: Optional[datetime] = Field(None, description="Task due date")
+    assigned_user_id: Optional[int] = Field(None, description="ID of the user assigned to this task")
 
 
 class TaskResponse(BaseModel):
@@ -89,6 +138,8 @@ class TaskResponse(BaseModel):
     priority: TaskPriority
     due_date: Optional[datetime]
     task_list_id: int
+    assigned_user_id: Optional[int]
+    assigned_user: Optional[UserResponse] = None
     created_at: datetime
     updated_at: Optional[datetime]
 
@@ -96,7 +147,7 @@ class TaskResponse(BaseModel):
         from_attributes = True
 
     @classmethod
-    def from_entity(cls, task):
+    def from_entity(cls, task, assigned_user=None):
         """Create response from Task entity."""
         return cls(
             id=task.id,
@@ -106,6 +157,8 @@ class TaskResponse(BaseModel):
             priority=task.priority,
             due_date=task.due_date,
             task_list_id=task.task_list_id,
+            assigned_user_id=task.assigned_user_id,
+            assigned_user=UserResponse.from_entity(assigned_user) if assigned_user else None,
             created_at=task.created_at,
             updated_at=task.updated_at,
         )
@@ -145,12 +198,19 @@ class TaskFilterRequest(BaseModel):
     priority: Optional[TaskPriority] = Field(
         None, description="Filter by task priority"
     )
+    assigned_user_id: Optional[int] = Field(None, description="Filter by assigned user ID")
 
 
 class TaskStatusUpdateRequest(BaseModel):
     """Request DTO for updating task status."""
 
     status: TaskStatus = Field(..., description="New task status")
+
+
+class TaskAssignmentRequest(BaseModel):
+    """Request DTO for assigning/unassigning a user to a task."""
+
+    assigned_user_id: Optional[int] = Field(None, description="ID of the user to assign (null to unassign)")
 
 
 class TasksWithStatsResponse(BaseModel):

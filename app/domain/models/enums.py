@@ -17,3 +17,11 @@ class TaskPriority(str, Enum):
     MEDIUM = "medium"
     HIGH = "high"
     URGENT = "urgent"
+
+
+class UserStatus(str, Enum):
+    """User status enumeration."""
+
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+    SUSPENDED = "suspended"

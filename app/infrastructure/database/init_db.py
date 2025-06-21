@@ -2,7 +2,7 @@
 
 import time
 from .connection import create_tables, drop_tables, engine
-from ..models import TaskListModel, TaskModel  # Import models to register them
+from ..models import TaskListModel, TaskModel, UserModel  # Import models to register them
 
 
 def init_database():

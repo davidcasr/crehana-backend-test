@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .infrastructure.database.init_db import init_database, check_database_connection
-from .api import task_lists_router, tasks_router
+from .api import task_lists_router, tasks_router, users_router
 
 
 @asynccontextmanager
@@ -32,7 +32,7 @@ async def lifespan(app: FastAPI):
 # Create FastAPI application
 app = FastAPI(
     title="Task Management API",
-    description="A comprehensive task management system with task lists and tasks",
+    description="A comprehensive task management system with users, task lists and tasks",
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
@@ -49,6 +49,7 @@ app.add_middleware(
 )
 
 # Include API routers
+app.include_router(users_router)
 app.include_router(task_lists_router, prefix="/api/v1")
 app.include_router(tasks_router, prefix="/api/v1")
 
