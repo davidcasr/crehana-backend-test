@@ -36,6 +36,7 @@ tasks_router = APIRouter(prefix="/tasks", tags=["Tasks"])
 
 # ===== ROUTER ORIGINAL (task-lists anidado) =====
 
+
 @router.post(
     "/{task_list_id}/tasks/",
     response_model=TaskResponse,
@@ -98,6 +99,7 @@ def create_task(
 
 # ===== ROUTER ADICIONAL (rutas directas para tests) =====
 
+
 @tasks_router.post(
     "/",
     response_model=TaskResponse,
@@ -115,7 +117,7 @@ def create_task_direct(
         if request.task_list_id is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="task_list_id is required for direct task creation"
+                detail="task_list_id is required for direct task creation",
             )
 
         # Get assigned user if provided (for response)
@@ -204,7 +206,7 @@ def get_task_direct(
     """Get task by ID (direct endpoint)."""
     try:
         task = task_use_cases.get_task_by_id(task_id)
-        
+
         # Get assigned user if exists
         assigned_user = None
         if task.assigned_user_id:
@@ -269,12 +271,14 @@ def update_task_status_direct(
     """Update task status (direct endpoint)."""
     try:
         task_entity = task_use_cases.update_task_status(task_id, request.status)
-        
+
         # Get assigned user if exists
         assigned_user = None
         if task_entity.assigned_user_id:
             try:
-                assigned_user = user_use_cases.get_user_by_id(task_entity.assigned_user_id)
+                assigned_user = user_use_cases.get_user_by_id(
+                    task_entity.assigned_user_id
+                )
             except EntityNotFoundException:
                 pass
 
@@ -302,17 +306,19 @@ def assign_task_to_user_direct(
     """Assign task to user (direct endpoint)."""
     try:
         # Get user_id from either field (user_id takes precedence for tests)
-        user_id = request.user_id if request.user_id is not None else request.assigned_user_id
-        
+        user_id = (
+            request.user_id if request.user_id is not None else request.assigned_user_id
+        )
+
         if user_id is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="user_id or assigned_user_id is required"
+                detail="user_id or assigned_user_id is required",
             )
-        
+
         # Get the user first to ensure they exist
         assigned_user = user_use_cases.get_user_by_id(user_id)
-        
+
         task_entity = task_use_cases.assign_task_to_user(task_id, user_id)
         return TaskResponse.from_entity(task_entity, assigned_user)
 
@@ -356,7 +362,7 @@ def get_tasks_by_user_direct(
     try:
         # Verify user exists
         assigned_user = user_use_cases.get_user_by_id(user_id)
-        
+
         tasks = task_use_cases.get_tasks_by_user_id(user_id)
         return [TaskResponse.from_entity(task, assigned_user) for task in tasks]
 
@@ -370,6 +376,7 @@ def get_tasks_by_user_direct(
 
 
 # ===== RESTO DEL ROUTER ORIGINAL (continúa igual) =====
+
 
 @router.get("/{task_list_id}/tasks/", response_model=TasksWithStatsResponse)
 def get_tasks_by_list(

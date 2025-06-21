@@ -6,7 +6,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .infrastructure.database.init_db import init_database, check_database_connection
-from .api import task_lists_router, tasks_router, tasks_direct_router, users_router, auth_router
+from .api import (
+    task_lists_router,
+    tasks_router,
+    tasks_direct_router,
+    users_router,
+    auth_router,
+)
 
 
 @asynccontextmanager
