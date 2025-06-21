@@ -1,88 +1,93 @@
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
-from ...domain.models.entities import TaskList
-from ...domain.repositories import TaskListRepository, TaskRepository
 from ...domain.exceptions import (
-    TaskListNotFoundException,
-    TaskListNameAlreadyExistsException,
+    EntityNotFoundException,
+    InvalidDataException,
+    DuplicateEntityException,
 )
+from ...domain.models.entities import TaskList
+from ...domain.repositories import TaskListRepository
 
 
 class TaskListUseCases:
     """Use cases for task list management."""
 
-    def __init__(
-        self, task_list_repository: TaskListRepository, task_repository: TaskRepository
-    ):
+    def __init__(self, task_list_repository: TaskListRepository):
         self.task_list_repository = task_list_repository
-        self.task_repository = task_repository
 
-    def create_task_list(self, name: str, description: str = None) -> TaskList:
+    def create_task_list(self, name: str, description: Optional[str] = None) -> TaskList:
         """Create a new task list."""
-        # Business validation: check if name already exists
-        if self.task_list_repository.exists_by_name(name):
-            raise TaskListNameAlreadyExistsException(
-                f"Task list with name '{name}' already exists"
-            )
+        # Validate input
+        if not name or len(name.strip()) < 1:
+            raise InvalidDataException("Task list name cannot be empty")
 
+        # Check for duplicate name
+        if self.task_list_repository.exists_by_name(name.strip()):
+            raise DuplicateEntityException(f"Task list with name '{name}' already exists")
+
+        # Create task list entity
+        now = datetime.utcnow()
         task_list = TaskList(
-            name=name, description=description, created_at=datetime.utcnow()
+            name=name.strip(),
+            description=description.strip() if description else None,
+            created_at=now,
+            updated_at=now,
         )
 
-        created_task_list = self.task_list_repository.create(task_list)
-        return created_task_list
+        return self.task_list_repository.create(task_list)
 
-    def get_task_list(self, task_list_id: int) -> TaskList:
+    def get_task_list_by_id(self, task_list_id: int) -> TaskList:
         """Get a task list by ID."""
+        if task_list_id <= 0:
+            raise InvalidDataException("Task list ID must be positive")
+
         task_list = self.task_list_repository.get_by_id(task_list_id)
         if not task_list:
-            raise TaskListNotFoundException(
-                f"Task list with ID {task_list_id} not found"
-            )
+            raise EntityNotFoundException(f"Task list with id {task_list_id} not found")
 
         return task_list
 
     def get_all_task_lists(self) -> List[TaskList]:
         """Get all task lists."""
-        task_lists = self.task_list_repository.get_all()
-        return task_lists
+        return self.task_list_repository.get_all()
 
     def update_task_list(
-        self, task_list_id: int, name: str = None, description: str = None
+        self,
+        task_list_id: int,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
     ) -> TaskList:
         """Update a task list."""
-        task_list = self.task_list_repository.get_by_id(task_list_id)
-        if not task_list:
-            raise TaskListNotFoundException(
-                f"Task list with ID {task_list_id} not found"
-            )
+        # Get existing task list
+        task_list = self.get_task_list_by_id(task_list_id)
 
-        # Business validation: check if new name already exists (excluding current task list)
-        if name and name != task_list.name:
-            if self.task_list_repository.exists_by_name(name, exclude_id=task_list_id):
-                raise TaskListNameAlreadyExistsException(
-                    f"Task list with name '{name}' already exists"
-                )
-
-        # Update fields
+        # Validate and set new values
         if name is not None:
-            task_list.name = name
+            if len(name.strip()) < 1:
+                raise InvalidDataException("Task list name cannot be empty")
+            
+            # Check for duplicate name (excluding current task list)
+            if self.task_list_repository.exists_by_name(name.strip(), exclude_id=task_list_id):
+                raise DuplicateEntityException(f"Task list with name '{name}' already exists")
+            
+            task_list.name = name.strip()
+
         if description is not None:
-            task_list.description = description
+            task_list.description = description.strip() if description else None
 
         task_list.updated_at = datetime.utcnow()
 
-        updated_task_list = self.task_list_repository.update(task_list)
-        return updated_task_list
+        return self.task_list_repository.update(task_list)
 
     def delete_task_list(self, task_list_id: int) -> bool:
         """Delete a task list."""
-        task_list = self.task_list_repository.get_by_id(task_list_id)
-        if not task_list:
-            raise TaskListNotFoundException(
-                f"Task list with ID {task_list_id} not found"
-            )
+        # Verify task list exists
+        self.get_task_list_by_id(task_list_id)
+
+        # TODO: Here we should check if the task list has tasks
+        # and decide how to handle them (cascade delete, prevent deletion, etc.)
+        # For now, we'll assume the database constraints will handle this
 
         return self.task_list_repository.delete(task_list_id)
 
@@ -92,9 +97,7 @@ class TaskListUseCases:
 
         task_list = self.task_list_repository.get_by_id(task_list_id)
         if not task_list:
-            raise TaskListNotFoundException(
-                f"Task list with ID {task_list_id} not found"
-            )
+            raise EntityNotFoundException(f"Task list with ID {task_list_id} not found")
 
         # Get all tasks for this task list
         tasks = self.task_repository.get_by_task_list_id(task_list_id)

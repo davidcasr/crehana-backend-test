@@ -63,10 +63,9 @@ def create_task(
             assigned_user = user_use_cases.get_user_by_id(request.assigned_user_id)
         
         task_entity = task_use_cases.create_task(
-            task_list_id=task_list_id,
             title=request.title,
             description=request.description,
-            status=request.status,
+            task_list_id=task_list_id,
             priority=request.priority,
             due_date=request.due_date,
             assigned_user_id=request.assigned_user_id,
@@ -86,7 +85,7 @@ def create_task(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error",
+           detail=str(e),
         )
 
 
@@ -136,16 +135,26 @@ def get_tasks_by_list(
     not just the filtered results.
     """
     try:
-        result = task_use_cases.get_tasks_with_stats(
+        # Get task list information
+        task_list = task_list_use_cases.get_task_list_by_id(task_list_id)
+        
+        # Get filtered tasks
+        tasks = task_use_cases.get_tasks_by_list_id(
             task_list_id=task_list_id, 
             status=status, 
             priority=priority,
             assigned_user_id=assigned_user_id
         )
         
+        # Get all tasks for completion percentage calculation
+        all_tasks = task_use_cases.get_tasks_by_list_id(task_list_id)
+        total_tasks = len(all_tasks)
+        completed_tasks = len([t for t in all_tasks if t.status == TaskStatus.COMPLETED])
+        completion_percentage = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0.0
+        
         # Get assigned users for tasks that have them
         tasks_with_users = []
-        for task in result["tasks"]:
+        for task in tasks:
             assigned_user = None
             if task.assigned_user_id:
                 try:
@@ -157,9 +166,9 @@ def get_tasks_by_list(
         
         # Create custom response with user information
         response_data = TasksWithStatsResponse.from_tasks_and_task_list(
-            tasks=result["tasks"],
-            task_list=result["task_list"],
-            completion_percentage=result["completion_percentage"],
+            tasks=tasks,
+            task_list=task_list,
+            completion_percentage=completion_percentage,
         )
         
         # Replace tasks with ones that include user information
@@ -256,7 +265,6 @@ def update_task(
             task_id=task_id,
             title=request.title,
             description=request.description,
-            status=request.status,
             priority=request.priority,
             due_date=request.due_date,
             assigned_user_id=request.assigned_user_id,
@@ -436,7 +444,7 @@ def get_tasks_by_user(
         # Verify user exists
         user = user_use_cases.get_user_by_id(user_id)
         
-        tasks = task_use_cases.get_tasks_by_user(user_id)
+        tasks = task_use_cases.get_tasks_by_user_id(user_id)
         return [TaskResponse.from_entity(task, user) for task in tasks]
 
     except EntityNotFoundException as e:

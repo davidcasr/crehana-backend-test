@@ -20,53 +20,41 @@ class SQLUserRepository(UserRepository):
             username=user.username,
             email=user.email,
             full_name=user.full_name,
-            status=user.status,
+            status=user.status.value,
             created_at=user.created_at,
-            updated_at=user.updated_at
+            updated_at=user.updated_at,
         )
         
         self.db.add(db_user)
         self.db.commit()
         self.db.refresh(db_user)
         
-        return self._to_entity(db_user)
+        return self._to_domain(db_user)
     
     def get_by_id(self, user_id: int) -> Optional[User]:
         """Get a user by ID."""
         db_user = self.db.query(UserModel).filter(UserModel.id == user_id).first()
-        
-        if not db_user:
-            return None
-        
-        return self._to_entity(db_user)
+        return self._to_domain(db_user) if db_user else None
     
     def get_by_username(self, username: str) -> Optional[User]:
         """Get a user by username."""
         db_user = self.db.query(UserModel).filter(UserModel.username == username).first()
-        
-        if not db_user:
-            return None
-        
-        return self._to_entity(db_user)
+        return self._to_domain(db_user) if db_user else None
     
     def get_by_email(self, email: str) -> Optional[User]:
         """Get a user by email."""
         db_user = self.db.query(UserModel).filter(UserModel.email == email).first()
-        
-        if not db_user:
-            return None
-        
-        return self._to_entity(db_user)
+        return self._to_domain(db_user) if db_user else None
     
     def get_all(self, status: Optional[UserStatus] = None) -> List[User]:
         """Get all users, optionally filtered by status."""
         query = self.db.query(UserModel)
         
         if status:
-            query = query.filter(UserModel.status == status)
+            query = query.filter(UserModel.status == status.value)
         
         db_users = query.all()
-        return [self._to_entity(db_user) for db_user in db_users]
+        return [self._to_domain(db_user) for db_user in db_users]
     
     def update(self, user: User) -> User:
         """Update a user."""
@@ -79,13 +67,13 @@ class SQLUserRepository(UserRepository):
         db_user.username = user.username
         db_user.email = user.email
         db_user.full_name = user.full_name
-        db_user.status = user.status
+        db_user.status = user.status.value
         db_user.updated_at = user.updated_at
         
         self.db.commit()
         self.db.refresh(db_user)
         
-        return self._to_entity(db_user)
+        return self._to_domain(db_user)
     
     def delete(self, user_id: int) -> bool:
         """Delete a user."""
@@ -116,14 +104,14 @@ class SQLUserRepository(UserRepository):
         
         return query.first() is not None
     
-    def _to_entity(self, db_user: UserModel) -> User:
-        """Convert SQLAlchemy model to domain entity."""
+    def _to_domain(self, db_user: UserModel) -> User:
+        """Convert UserModel to User domain entity."""
         return User(
             id=db_user.id,
             username=db_user.username,
             email=db_user.email,
             full_name=db_user.full_name,
-            status=db_user.status,
+            status=UserStatus(db_user.status),
             created_at=db_user.created_at,
-            updated_at=db_user.updated_at
+            updated_at=db_user.updated_at,
         ) 
