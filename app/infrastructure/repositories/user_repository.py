@@ -20,6 +20,7 @@ class SQLUserRepository(UserRepository):
             username=user.username,
             email=user.email,
             full_name=user.full_name,
+            password_hash=user.password_hash,
             status=user.status.value,
             created_at=user.created_at,
             updated_at=user.updated_at,
@@ -67,6 +68,8 @@ class SQLUserRepository(UserRepository):
         db_user.username = user.username
         db_user.email = user.email
         db_user.full_name = user.full_name
+        if user.password_hash is not None:
+            db_user.password_hash = user.password_hash
         db_user.status = user.status.value
         db_user.updated_at = user.updated_at
         
@@ -111,6 +114,7 @@ class SQLUserRepository(UserRepository):
             username=db_user.username,
             email=db_user.email,
             full_name=db_user.full_name,
+            password_hash=db_user.password_hash,
             status=UserStatus(db_user.status),
             created_at=db_user.created_at,
             updated_at=db_user.updated_at,

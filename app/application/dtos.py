@@ -237,3 +237,31 @@ class TasksWithStatsResponse(BaseModel):
             completion_percentage=completion_percentage,
             tasks=[TaskResponse.from_entity(task) for task in tasks],
         )
+
+
+# Authentication DTOs
+class LoginRequest(BaseModel):
+    """Request DTO for user login."""
+    username: str = Field(..., description="Username or email")
+    password: str = Field(..., min_length=6, description="User password")
+
+
+class LoginResponse(BaseModel):
+    """Response DTO for user login."""
+    access_token: str = Field(..., description="JWT access token")
+    token_type: str = Field(default="bearer", description="Token type")
+    user: UserResponse = Field(..., description="User information")
+
+
+class RegisterRequest(BaseModel):
+    """Request DTO for user registration."""
+    username: str = Field(..., min_length=3, max_length=50, description="Username")
+    email: str = Field(..., max_length=100, description="User email")
+    full_name: str = Field(..., min_length=1, max_length=100, description="User full name")
+    password: str = Field(..., min_length=6, description="User password")
+
+
+class ChangePasswordRequest(BaseModel):
+    """Request DTO for changing password."""
+    current_password: str = Field(..., description="Current password")
+    new_password: str = Field(..., min_length=6, description="New password")

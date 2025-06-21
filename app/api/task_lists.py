@@ -13,6 +13,8 @@ from ..domain.exceptions import (
     InvalidDataException,
     DuplicateEntityException,
 )
+from ..domain.models.entities import User
+from ..auth.dependencies import get_current_user
 
 router = APIRouter(prefix="/task-lists", tags=["Task Lists"])
 
@@ -20,7 +22,8 @@ router = APIRouter(prefix="/task-lists", tags=["Task Lists"])
 @router.post("/", response_model=TaskListResponse, status_code=status.HTTP_201_CREATED)
 def create_task_list(
     request: TaskListCreateRequest, 
-    task_list_use_cases: TaskListUseCases = Depends(get_task_list_use_cases)
+    task_list_use_cases: TaskListUseCases = Depends(get_task_list_use_cases),
+    current_user: User = Depends(get_current_user)
 ):
     """Create a new task list."""
     try:
@@ -42,7 +45,8 @@ def create_task_list(
 
 @router.get("/", response_model=List[TaskListResponse])
 def get_all_task_lists(
-    task_list_use_cases: TaskListUseCases = Depends(get_task_list_use_cases)
+    task_list_use_cases: TaskListUseCases = Depends(get_task_list_use_cases),
+    current_user: User = Depends(get_current_user)
 ):
     """Get all task lists."""
     try:
@@ -61,7 +65,8 @@ def get_all_task_lists(
 @router.get("/{task_list_id}", response_model=TaskListResponse)
 def get_task_list(
     task_list_id: int, 
-    task_list_use_cases: TaskListUseCases = Depends(get_task_list_use_cases)
+    task_list_use_cases: TaskListUseCases = Depends(get_task_list_use_cases),
+    current_user: User = Depends(get_current_user)
 ):
     """Get a task list by ID."""
     try:
@@ -81,7 +86,8 @@ def get_task_list(
 def update_task_list(
     task_list_id: int, 
     request: TaskListUpdateRequest, 
-    task_list_use_cases: TaskListUseCases = Depends(get_task_list_use_cases)
+    task_list_use_cases: TaskListUseCases = Depends(get_task_list_use_cases),
+    current_user: User = Depends(get_current_user)
 ):
     """Update a task list."""
     try:
@@ -108,7 +114,8 @@ def update_task_list(
 @router.delete("/{task_list_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_task_list(
     task_list_id: int, 
-    task_list_use_cases: TaskListUseCases = Depends(get_task_list_use_cases)
+    task_list_use_cases: TaskListUseCases = Depends(get_task_list_use_cases),
+    current_user: User = Depends(get_current_user)
 ):
     """Delete a task list."""
     try:
@@ -121,3 +128,4 @@ def delete_task_list(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error",
         )
+ 

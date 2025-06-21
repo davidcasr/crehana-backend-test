@@ -20,6 +20,8 @@ from ..domain.exceptions import (
     DuplicateEntityException,
 )
 from ..domain.models.enums import TaskStatus, TaskPriority
+from ..domain.models.entities import User
+from ..auth.dependencies import get_current_user
 
 router = APIRouter(prefix="/task-lists", tags=["Tasks"])
 
@@ -34,6 +36,7 @@ def create_task(
     request: TaskCreateRequest, 
     task_use_cases: TaskUseCases = Depends(get_task_use_cases),
     user_use_cases: UserUseCases = Depends(get_user_use_cases),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Create a new task in a task list.
@@ -102,6 +105,7 @@ def get_tasks_by_list(
     task_use_cases: TaskUseCases = Depends(get_task_use_cases),
     task_list_use_cases: TaskListUseCases = Depends(get_task_list_use_cases),
     user_use_cases: UserUseCases = Depends(get_user_use_cases),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Get all tasks for a task list with optional filters and completion statistics.
@@ -189,6 +193,7 @@ def get_task(
     task_id: int, 
     task_use_cases: TaskUseCases = Depends(get_task_use_cases),
     user_use_cases: UserUseCases = Depends(get_user_use_cases),
+    current_user: User = Depends(get_current_user)
 ):
     """Get a task by ID including assigned user information."""
     try:
@@ -230,6 +235,7 @@ def update_task(
     request: TaskUpdateRequest,
     task_use_cases: TaskUseCases = Depends(get_task_use_cases),
     user_use_cases: UserUseCases = Depends(get_user_use_cases),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Update a task.
@@ -298,6 +304,7 @@ def update_task_status(
     request: TaskStatusUpdateRequest,
     task_use_cases: TaskUseCases = Depends(get_task_use_cases),
     user_use_cases: UserUseCases = Depends(get_user_use_cases),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Update task status.
@@ -348,6 +355,7 @@ def assign_task_to_user(
     request: TaskAssignmentRequest,
     task_use_cases: TaskUseCases = Depends(get_task_use_cases),
     user_use_cases: UserUseCases = Depends(get_user_use_cases),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Assign or unassign a task to a user.
@@ -398,6 +406,7 @@ def delete_task(
     task_list_id: int, 
     task_id: int, 
     task_use_cases: TaskUseCases = Depends(get_task_use_cases),
+    current_user: User = Depends(get_current_user)
 ):
     """Delete a task."""
     try:
@@ -426,6 +435,7 @@ def get_tasks_by_user(
     user_id: int,
     task_use_cases: TaskUseCases = Depends(get_task_use_cases),
     user_use_cases: UserUseCases = Depends(get_user_use_cases),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Get all tasks assigned to a specific user across all task lists.
@@ -452,3 +462,4 @@ def get_tasks_by_user(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error",
         )
+ 

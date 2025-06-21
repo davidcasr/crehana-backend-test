@@ -11,6 +11,7 @@ class User(BaseModel):
     username: str = Field(..., min_length=3, max_length=50, description="Username")
     email: str = Field(..., max_length=100, description="User email")
     full_name: str = Field(..., min_length=1, max_length=100, description="User full name")
+    password_hash: Optional[str] = Field(None, description="Hashed password")
     status: UserStatus = Field(default=UserStatus.ACTIVE, description="User status")
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

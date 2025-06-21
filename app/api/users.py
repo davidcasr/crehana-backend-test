@@ -5,7 +5,6 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
 from ..application.dtos import (
-    UserCreateRequest,
     UserUpdateRequest,
     UserResponse,
 )
@@ -20,38 +19,6 @@ from ..domain.models.enums import UserStatus
 
 router = APIRouter(prefix="/api/v1/users", tags=["Users"])
 
-
-@router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def create_user(
-    user_data: UserCreateRequest,
-    user_use_cases: UserUseCases = Depends(get_user_use_cases),
-):
-    """
-    Create a new user.
-    
-    - **username**: Username (3-50 characters, unique)
-    - **email**: User email (unique)
-    - **full_name**: User's full name
-    - **status**: User status (active, inactive, suspended)
-    """
-    try:
-        user = user_use_cases.create_user(
-            username=user_data.username,
-            email=user_data.email,
-            full_name=user_data.full_name,
-            status=user_data.status,
-        )
-        return UserResponse.from_entity(user)
-    except InvalidDataException as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        )
-    except DuplicateEntityException as e:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(e),
-        )
 
 
 @router.get("/", response_model=List[UserResponse])

@@ -15,6 +15,7 @@ class UserModel(Base):
     username = Column(String(50), unique=True, nullable=False, index=True)
     email = Column(String(100), unique=True, nullable=False, index=True)
     full_name = Column(String(100), nullable=False)
+    password_hash = Column(String(255), nullable=True)  # Nullable para usuarios existentes
     status = Column(Enum(UserStatus), default=UserStatus.ACTIVE, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=True)

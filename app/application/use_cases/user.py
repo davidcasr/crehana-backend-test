@@ -22,6 +22,7 @@ class UserUseCases:
         username: str,
         email: str,
         full_name: str,
+        password_hash: Optional[str] = None,
         status: UserStatus = UserStatus.ACTIVE,
     ) -> User:
         """Create a new user."""
@@ -48,6 +49,7 @@ class UserUseCases:
             username=username.strip(),
             email=email.strip().lower(),
             full_name=full_name.strip(),
+            password_hash=password_hash,
             status=status,
             created_at=now,
             updated_at=now,
@@ -153,4 +155,30 @@ class UserUseCases:
 
     def activate_user(self, user_id: int) -> User:
         """Activate a user."""
-        return self.update_user(user_id, status=UserStatus.ACTIVE) 
+        return self.update_user(user_id, status=UserStatus.ACTIVE)
+
+    def update_user_password(self, user_id: int, password_hash: str) -> User:
+        """Update user password hash."""
+        user = self.get_user_by_id(user_id)
+        user.password_hash = password_hash
+        user.updated_at = datetime.utcnow()
+        return self.user_repository.update(user)
+
+    def authenticate_user(self, username_or_email: str) -> Optional[User]:
+        """Get user for authentication by username or email."""
+        if not username_or_email or len(username_or_email.strip()) == 0:
+            return None
+
+        # Try to get user by username first
+        try:
+            return self.get_user_by_username(username_or_email.strip())
+        except EntityNotFoundException:
+            pass
+
+        # If not found by username, try by email
+        try:
+            return self.get_user_by_email(username_or_email.strip())
+        except (EntityNotFoundException, InvalidDataException):
+            pass
+
+        return None 
