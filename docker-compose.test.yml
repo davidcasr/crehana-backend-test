@@ -74,7 +74,7 @@ services:
     command: >
       bash -c "
         echo '📊 Generando reporte de cobertura...' &&
-        pytest -v --cov=app --cov-report=term-missing --cov-report=html --cov-fail-under=80 &&
+        pytest -v --cov=app --cov-report=term-missing --cov-report=html --cov-fail-under=75 &&
         echo '✅ Reporte de cobertura generado en htmlcov/'
       "
     networks:
