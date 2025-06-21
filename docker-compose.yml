@@ -1,0 +1,35 @@
+version: "3.8"
+
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@db:5432/fastapi_db
+    depends_on:
+      - db
+    volumes:
+      - .:/app
+    networks:
+      - fastapi-network
+
+  db:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=fastapi_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - fastapi-network
+
+volumes:
+  postgres_data:
+
+networks:
+  fastapi-network:
+    driver: bridge
