@@ -118,6 +118,9 @@ class TaskCreateRequest(BaseModel):
     assigned_user_id: Optional[int] = Field(
         None, description="ID of the user assigned to this task"
     )
+    task_list_id: Optional[int] = Field(
+        None, description="ID of the task list (required for direct endpoints)"
+    )
 
 
 class TaskUpdateRequest(BaseModel):
@@ -225,6 +228,9 @@ class TaskAssignmentRequest(BaseModel):
 
     assigned_user_id: Optional[int] = Field(
         None, description="ID of the user to assign (null to unassign)"
+    )
+    user_id: Optional[int] = Field(
+        None, description="ID of the user to assign (alternative field name)"
     )
 
 

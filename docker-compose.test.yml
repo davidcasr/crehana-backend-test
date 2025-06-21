@@ -1,0 +1,108 @@
+version: "3.8"
+
+services:
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    environment:
+      - DATABASE_URL=sqlite:///./test.db
+      - SECRET_KEY=test-secret-key-for-testing-only
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - PYTHONPATH=/app
+    volumes:
+      - .:/app
+      - test-coverage:/app/htmlcov
+    command: >
+      bash -c "
+        echo '🧪 Ejecutando suite completa de tests...' &&
+        pytest -v --cov=app --cov-report=term-missing --cov-report=html --tb=short
+      "
+    networks:
+      - test-network
+
+  test-unit:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    environment:
+      - DATABASE_URL=sqlite:///./test.db
+      - SECRET_KEY=test-secret-key-for-testing-only
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - PYTHONPATH=/app
+    volumes:
+      - .:/app
+    command: >
+      bash -c "
+        echo '🔬 Ejecutando tests unitarios...' &&
+        pytest tests/unit/ -v -m unit --tb=short
+      "
+    networks:
+      - test-network
+
+  test-integration:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    environment:
+      - DATABASE_URL=sqlite:///./test.db
+      - SECRET_KEY=test-secret-key-for-testing-only
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - PYTHONPATH=/app
+    volumes:
+      - .:/app
+    command: >
+      bash -c "
+        echo '🔗 Ejecutando tests de integración...' &&
+        pytest tests/integration/ -v -m integration --tb=short
+      "
+    networks:
+      - test-network
+
+  test-coverage:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    environment:
+      - DATABASE_URL=sqlite:///./test.db
+      - SECRET_KEY=test-secret-key-for-testing-only
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - PYTHONPATH=/app
+    volumes:
+      - .:/app
+      - test-coverage:/app/htmlcov
+    command: >
+      bash -c "
+        echo '📊 Generando reporte de cobertura...' &&
+        pytest -v --cov=app --cov-report=term-missing --cov-report=html --cov-fail-under=80 &&
+        echo '✅ Reporte de cobertura generado en htmlcov/'
+      "
+    networks:
+      - test-network
+
+  test-watch:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    environment:
+      - DATABASE_URL=sqlite:///./test.db
+      - SECRET_KEY=test-secret-key-for-testing-only
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - PYTHONPATH=/app
+    volumes:
+      - .:/app
+    command: >
+      bash -c "
+        echo '👀 Ejecutando tests en modo watch...' &&
+        pip install pytest-watch &&
+        ptw --runner 'pytest -v --tb=short'
+      "
+    networks:
+      - test-network
+
+volumes:
+  test-coverage:
+
+networks:
+  test-network:
+    driver: bridge

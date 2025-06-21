@@ -27,7 +27,7 @@ class SQLTaskListRepository(TaskListRepository):
         self.db.commit()
         self.db.refresh(db_task_list)
 
-        return self._to_entity(db_task_list)
+        return self._to_domain(db_task_list)
 
     def get_by_id(self, task_list_id: int) -> Optional[TaskList]:
         """Get a task list by ID."""
@@ -40,12 +40,12 @@ class SQLTaskListRepository(TaskListRepository):
         if not db_task_list:
             return None
 
-        return self._to_entity(db_task_list)
+        return self._to_domain(db_task_list)
 
     def get_all(self) -> List[TaskList]:
         """Get all task lists."""
         db_task_lists = self.db.query(TaskListModel).all()
-        return [self._to_entity(db_task_list) for db_task_list in db_task_lists]
+        return [self._to_domain(db_task_list) for db_task_list in db_task_lists]
 
     def update(self, task_list: TaskList) -> TaskList:
         """Update a task list."""
@@ -66,7 +66,7 @@ class SQLTaskListRepository(TaskListRepository):
         self.db.commit()
         self.db.refresh(db_task_list)
 
-        return self._to_entity(db_task_list)
+        return self._to_domain(db_task_list)
 
     def delete(self, task_list_id: int) -> bool:
         """Delete a task list."""
@@ -92,7 +92,7 @@ class SQLTaskListRepository(TaskListRepository):
 
         return query.first() is not None
 
-    def _to_entity(self, db_task_list: TaskListModel) -> TaskList:
+    def _to_domain(self, db_task_list: TaskListModel) -> TaskList:
         """Convert SQLAlchemy model to domain entity."""
         # Get task count
         task_count = (

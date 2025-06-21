@@ -27,8 +27,14 @@ from ..domain.models.enums import TaskStatus, TaskPriority
 from ..domain.models.entities import User
 from ..auth.dependencies import get_current_user
 
+# Router original para rutas anidadas bajo task-lists
 router = APIRouter(prefix="/task-lists", tags=["Tasks"])
 
+# Router adicional para rutas directas de tasks (para tests)
+tasks_router = APIRouter(prefix="/tasks", tags=["Tasks"])
+
+
+# ===== ROUTER ORIGINAL (task-lists anidado) =====
 
 @router.post(
     "/{task_list_id}/tasks/",
@@ -89,6 +95,256 @@ def create_task(
             detail=str(e),
         )
 
+
+# ===== ROUTER ADICIONAL (rutas directas para tests) =====
+
+@tasks_router.post(
+    "/",
+    response_model=TaskResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_task_direct(
+    request: TaskCreateRequest,
+    task_use_cases: TaskUseCases = Depends(get_task_use_cases),
+    user_use_cases: UserUseCases = Depends(get_user_use_cases),
+    current_user: User = Depends(get_current_user),
+):
+    """Create a new task (direct endpoint for API consistency)."""
+    try:
+        # Validate that task_list_id is provided for direct endpoint
+        if request.task_list_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="task_list_id is required for direct task creation"
+            )
+
+        # Get assigned user if provided (for response)
+        assigned_user = None
+        if request.assigned_user_id:
+            assigned_user = user_use_cases.get_user_by_id(request.assigned_user_id)
+
+        task_entity = task_use_cases.create_task(
+            title=request.title,
+            description=request.description,
+            task_list_id=request.task_list_id,
+            priority=request.priority,
+            due_date=request.due_date,
+            assigned_user_id=request.assigned_user_id,
+        )
+        return TaskResponse.from_entity(task_entity, assigned_user)
+
+    except EntityNotFoundException as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except DuplicateEntityException as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    except InvalidDataException as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
+        )
+
+
+@tasks_router.get("/list/{task_list_id}", response_model=List[TaskResponse])
+def get_tasks_by_list_direct(
+    task_list_id: int,
+    task_status: Optional[TaskStatus] = Query(
+        None,
+        alias="status",
+        description="Filter by task status",
+    ),
+    priority: Optional[TaskPriority] = Query(
+        None,
+        description="Filter by task priority",
+    ),
+    assigned_user_id: Optional[int] = Query(
+        None,
+        description="Filter by assigned user ID",
+    ),
+    task_use_cases: TaskUseCases = Depends(get_task_use_cases),
+    user_use_cases: UserUseCases = Depends(get_user_use_cases),
+    current_user: User = Depends(get_current_user),
+):
+    """Get tasks by task list ID (direct endpoint)."""
+    try:
+        tasks = task_use_cases.get_tasks_by_list_id(
+            task_list_id=task_list_id,
+            status=task_status,
+            priority=priority,
+            assigned_user_id=assigned_user_id,
+        )
+
+        # Get assigned users for tasks that have them
+        tasks_with_users = []
+        for task in tasks:
+            assigned_user = None
+            if task.assigned_user_id:
+                try:
+                    assigned_user = user_use_cases.get_user_by_id(task.assigned_user_id)
+                except EntityNotFoundException:
+                    pass
+            tasks_with_users.append(TaskResponse.from_entity(task, assigned_user))
+
+        return tasks_with_users
+
+    except EntityNotFoundException as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except InvalidDataException as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@tasks_router.get("/{task_id}", response_model=TaskResponse)
+def get_task_direct(
+    task_id: int,
+    task_use_cases: TaskUseCases = Depends(get_task_use_cases),
+    user_use_cases: UserUseCases = Depends(get_user_use_cases),
+    current_user: User = Depends(get_current_user),
+):
+    """Get task by ID (direct endpoint)."""
+    try:
+        task = task_use_cases.get_task_by_id(task_id)
+        
+        # Get assigned user if exists
+        assigned_user = None
+        if task.assigned_user_id:
+            try:
+                assigned_user = user_use_cases.get_user_by_id(task.assigned_user_id)
+            except EntityNotFoundException:
+                pass
+
+        return TaskResponse.from_entity(task, assigned_user)
+
+    except EntityNotFoundException as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@tasks_router.put("/{task_id}", response_model=TaskResponse)
+def update_task_direct(
+    task_id: int,
+    request: TaskUpdateRequest,
+    task_use_cases: TaskUseCases = Depends(get_task_use_cases),
+    user_use_cases: UserUseCases = Depends(get_user_use_cases),
+    current_user: User = Depends(get_current_user),
+):
+    """Update task (direct endpoint)."""
+    try:
+        # Get assigned user if provided
+        assigned_user = None
+        if request.assigned_user_id:
+            assigned_user = user_use_cases.get_user_by_id(request.assigned_user_id)
+
+        task_entity = task_use_cases.update_task(
+            task_id=task_id,
+            title=request.title,
+            description=request.description,
+            priority=request.priority,
+            status=request.status,
+            due_date=request.due_date,
+            assigned_user_id=request.assigned_user_id,
+        )
+        return TaskResponse.from_entity(task_entity, assigned_user)
+
+    except EntityNotFoundException as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except DuplicateEntityException as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    except InvalidDataException as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@tasks_router.patch("/{task_id}/status", response_model=TaskResponse)
+def update_task_status_direct(
+    task_id: int,
+    request: TaskStatusUpdateRequest,
+    task_use_cases: TaskUseCases = Depends(get_task_use_cases),
+    user_use_cases: UserUseCases = Depends(get_user_use_cases),
+    current_user: User = Depends(get_current_user),
+):
+    """Update task status (direct endpoint)."""
+    try:
+        task_entity = task_use_cases.update_task_status(task_id, request.status)
+        
+        # Get assigned user if exists
+        assigned_user = None
+        if task_entity.assigned_user_id:
+            try:
+                assigned_user = user_use_cases.get_user_by_id(task_entity.assigned_user_id)
+            except EntityNotFoundException:
+                pass
+
+        return TaskResponse.from_entity(task_entity, assigned_user)
+
+    except EntityNotFoundException as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except InvalidDataException as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@tasks_router.patch("/{task_id}/assign", response_model=TaskResponse)
+def assign_task_to_user_direct(
+    task_id: int,
+    request: TaskAssignmentRequest,
+    task_use_cases: TaskUseCases = Depends(get_task_use_cases),
+    user_use_cases: UserUseCases = Depends(get_user_use_cases),
+    current_user: User = Depends(get_current_user),
+):
+    """Assign task to user (direct endpoint)."""
+    try:
+        # Get user_id from either field (user_id takes precedence for tests)
+        user_id = request.user_id if request.user_id is not None else request.assigned_user_id
+        
+        if user_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="user_id or assigned_user_id is required"
+            )
+        
+        # Get the user first to ensure they exist
+        assigned_user = user_use_cases.get_user_by_id(user_id)
+        
+        task_entity = task_use_cases.assign_task_to_user(task_id, user_id)
+        return TaskResponse.from_entity(task_entity, assigned_user)
+
+    except EntityNotFoundException as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except InvalidDataException as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@tasks_router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_task_direct(
+    task_id: int,
+    task_use_cases: TaskUseCases = Depends(get_task_use_cases),
+    current_user: User = Depends(get_current_user),
+):
+    """Delete task (direct endpoint)."""
+    try:
+        task_use_cases.delete_task(task_id)
+    except EntityNotFoundException as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@tasks_router.get("/user/{user_id}", response_model=List[TaskResponse])
+def get_tasks_by_user_direct(
+    user_id: int,
+    task_use_cases: TaskUseCases = Depends(get_task_use_cases),
+    user_use_cases: UserUseCases = Depends(get_user_use_cases),
+    current_user: User = Depends(get_current_user),
+):
+    """Get tasks assigned to a specific user (direct endpoint)."""
+    try:
+        # Verify user exists
+        assigned_user = user_use_cases.get_user_by_id(user_id)
+        
+        tasks = task_use_cases.get_tasks_by_user_id(user_id)
+        return [TaskResponse.from_entity(task, assigned_user) for task in tasks]
+
+    except EntityNotFoundException as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+# ===== RESTO DEL ROUTER ORIGINAL (continúa igual) =====
 
 @router.get("/{task_list_id}/tasks/", response_model=TasksWithStatsResponse)
 def get_tasks_by_list(

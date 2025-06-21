@@ -22,6 +22,11 @@ class User(BaseModel):
     class Config:
         from_attributes = True
 
+    @property
+    def is_active(self) -> bool:
+        """Check if user is active."""
+        return self.status == UserStatus.ACTIVE
+
 
 class TaskList(BaseModel):
     """Task list entity."""
@@ -63,6 +68,18 @@ class Task(BaseModel):
 
     class Config:
         from_attributes = True
+
+    @property
+    def is_completed(self) -> bool:
+        """Check if task is completed."""
+        return self.status == TaskStatus.COMPLETED
+
+    @property
+    def is_overdue(self) -> bool:
+        """Check if task is overdue."""
+        if self.due_date is None:
+            return False
+        return datetime.utcnow() > self.due_date and self.status != TaskStatus.COMPLETED
 
 
 # Update forward references
