@@ -14,7 +14,7 @@ async def lifespan(app: FastAPI):
     """Application lifespan context manager."""
     # Startup
     print("Starting Task Management API...")
-    
+
     # Check database connection
     if check_database_connection():
         # Initialize database tables
@@ -22,9 +22,9 @@ async def lifespan(app: FastAPI):
         print("Database initialized successfully!")
     else:
         print("Warning: Database connection failed!")
-    
+
     yield
-    
+
     # Shutdown
     print("Shutting down Task Management API...")
 
@@ -36,7 +36,7 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Configure CORS
@@ -59,7 +59,7 @@ async def root():
     return {
         "message": "Welcome to Task Management API!",
         "version": "1.0.0",
-        "status": "running"
+        "status": "running",
     }
 
 
@@ -68,25 +68,15 @@ async def health_check():
     """Detailed health check endpoint."""
     # Check database connectivity
     db_status = "connected" if check_database_connection() else "disconnected"
-    
-    return {
-        "status": "healthy",
-        "database": db_status,
-        "version": "1.0.0"
-    }
+
+    return {"status": "healthy", "database": db_status, "version": "1.0.0"}
 
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     host = os.getenv("API_HOST", "0.0.0.0")
     port = int(os.getenv("API_PORT", 8000))
     debug = os.getenv("DEBUG", "False").lower() == "true"
-    
-    uvicorn.run(
-        "app.main:app",
-        host=host,
-        port=port,
-        reload=debug,
-        log_level="info"
-    ) 
+
+    uvicorn.run("app.main:app", host=host, port=port, reload=debug, log_level="info")

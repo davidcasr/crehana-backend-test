@@ -6,7 +6,9 @@ from sqlalchemy.pool import StaticPool
 from .base import Base
 
 # Database configuration
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:password@db:5432/fastapi_db")
+DATABASE_URL = os.getenv(
+    "DATABASE_URL", "postgresql://postgres:password@db:5432/fastapi_db"
+)
 
 # Create engine with connection pooling
 engine = create_engine(
@@ -36,4 +38,4 @@ def get_db():
     try:
         yield db
     finally:
-        db.close() 
+        db.close()

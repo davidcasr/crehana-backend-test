@@ -26,6 +26,7 @@ def check_database_connection(max_retries=5, delay=2):
     for attempt in range(max_retries):
         try:
             from sqlalchemy import text
+
             # Try to execute a simple query
             with engine.connect() as connection:
                 result = connection.execute(text("SELECT 1"))
@@ -49,4 +50,4 @@ if __name__ == "__main__":
         # Initialize database
         init_database()
     else:
-        print("Cannot initialize database due to connection issues.") 
+        print("Cannot initialize database due to connection issues.")

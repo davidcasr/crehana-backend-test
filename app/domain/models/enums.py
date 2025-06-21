@@ -3,6 +3,7 @@ from enum import Enum
 
 class TaskStatus(str, Enum):
     """Task status enumeration."""
+
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
@@ -11,7 +12,8 @@ class TaskStatus(str, Enum):
 
 class TaskPriority(str, Enum):
     """Task priority enumeration."""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
-    URGENT = "urgent" 
+    URGENT = "urgent"
