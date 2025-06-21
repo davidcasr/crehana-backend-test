@@ -9,6 +9,7 @@ from ...domain.exceptions import (
 from ...domain.models.entities import Task
 from ...domain.models.enums import TaskStatus, TaskPriority
 from ...domain.repositories import TaskRepository, TaskListRepository, UserRepository
+from ...infrastructure.services.email_service import EmailService
 
 
 class TaskUseCases:
@@ -19,10 +20,12 @@ class TaskUseCases:
         task_repository: TaskRepository,
         task_list_repository: TaskListRepository,
         user_repository: UserRepository,
+        email_service: EmailService,
     ):
         self.task_repository = task_repository
         self.task_list_repository = task_list_repository
         self.user_repository = user_repository
+        self.email_service = email_service
 
     def create_task(
         self,
@@ -56,12 +59,13 @@ class TaskUseCases:
             )
 
         # Verify assigned user exists if provided
+        assigned_user = None
         if assigned_user_id is not None:
             if assigned_user_id <= 0:
                 raise InvalidDataException("Assigned user ID must be positive")
             
-            user = self.user_repository.get_by_id(assigned_user_id)
-            if not user:
+            assigned_user = self.user_repository.get_by_id(assigned_user_id)
+            if not assigned_user:
                 raise EntityNotFoundException(f"User with id {assigned_user_id} not found")
 
         # Create task entity
@@ -78,7 +82,22 @@ class TaskUseCases:
             updated_at=now,
         )
 
-        return self.task_repository.create(task)
+        # Save task to database
+        created_task = self.task_repository.create(task)
+
+        # Send email notification if task is assigned to a user
+        if assigned_user:
+            try:
+                self.email_service.send_task_assignment_email(
+                    user=assigned_user,
+                    task=created_task,
+                    task_list=task_list
+                )
+            except Exception as e:
+                # Log error but don't fail the task creation
+                print(f"⚠️  Error enviando notificación por email: {str(e)}")
+
+        return created_task
 
     def get_task_by_id(self, task_id: int) -> Task:
         """Get a task by ID."""
@@ -196,19 +215,39 @@ class TaskUseCases:
 
     def assign_task_to_user(self, task_id: int, user_id: Optional[int]) -> Task:
         """Assign or unassign a task to a user."""
-        # Verify task exists
-        self.get_task_by_id(task_id)
+        # Get task and task list information
+        task = self.get_task_by_id(task_id)
+        task_list = self.task_list_repository.get_by_id(task.task_list_id)
+        
+        # Store old assigned user for comparison
+        old_assigned_user_id = task.assigned_user_id
 
         # Verify user exists if provided
+        assigned_user = None
         if user_id is not None:
             if user_id <= 0:
                 raise InvalidDataException("User ID must be positive")
             
-            user = self.user_repository.get_by_id(user_id)
-            if not user:
+            assigned_user = self.user_repository.get_by_id(user_id)
+            if not assigned_user:
                 raise EntityNotFoundException(f"User with id {user_id} not found")
 
-        return self.task_repository.assign_user(task_id, user_id)
+        # Update task assignment
+        updated_task = self.task_repository.assign_user(task_id, user_id)
+
+        # Send email notification if task is newly assigned to a user
+        if assigned_user and old_assigned_user_id != user_id:
+            try:
+                self.email_service.send_task_assignment_email(
+                    user=assigned_user,
+                    task=updated_task,
+                    task_list=task_list
+                )
+            except Exception as e:
+                # Log error but don't fail the assignment
+                print(f"⚠️  Error enviando notificación por email: {str(e)}")
+
+        return updated_task
 
     def delete_task(self, task_id: int) -> bool:
         """Delete a task."""
