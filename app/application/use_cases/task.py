@@ -224,3 +224,4 @@ class TaskUseCases:
     def reopen_task(self, task_id: int) -> Task:
         """Reopen a completed task."""
         return self.update_task_status(task_id, TaskStatus.PENDING)
+ 

@@ -105,7 +105,6 @@ class TaskCreateRequest(BaseModel):
     description: Optional[str] = Field(
         None, max_length=1000, description="Task description"
     )
-    status: TaskStatus = Field(default=TaskStatus.PENDING, description="Task status")
     priority: TaskPriority = Field(
         default=TaskPriority.MEDIUM, description="Task priority"
     )

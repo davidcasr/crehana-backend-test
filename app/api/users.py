@@ -56,7 +56,7 @@ def create_user(
 
 @router.get("/", response_model=List[UserResponse])
 def list_users(
-    user_status: Optional[UserStatus] = Query(None, description="Filter by user status"),
+    user_status: Optional[UserStatus] = Query(None, alias="status", description="Filter by user status"),
     user_use_cases: UserUseCases = Depends(get_user_use_cases),
 ):
     """

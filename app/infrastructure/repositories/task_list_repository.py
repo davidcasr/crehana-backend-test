@@ -107,7 +107,7 @@ class SQLTaskListRepository(TaskListRepository):
             from .task_repository import SQLTaskRepository
 
             task_repo = SQLTaskRepository(self.db)
-            tasks = [task_repo._to_entity(task) for task in db_task_list.tasks]
+            tasks = [task_repo._to_domain(task) for task in db_task_list.tasks]
 
         return TaskList(
             id=db_task_list.id,

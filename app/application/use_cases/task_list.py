@@ -91,27 +91,4 @@ class TaskListUseCases:
 
         return self.task_list_repository.delete(task_list_id)
 
-    def get_task_list_with_completion_stats(self, task_list_id: int) -> dict:
-        """Get a task list with completion percentage."""
-        from ...domain.models.enums import TaskStatus
 
-        task_list = self.task_list_repository.get_by_id(task_list_id)
-        if not task_list:
-            raise EntityNotFoundException(f"Task list with ID {task_list_id} not found")
-
-        # Get all tasks for this task list
-        tasks = self.task_repository.get_by_task_list_id(task_list_id)
-
-        # Calculate completion percentage
-        total_tasks = len(tasks)
-        completed_tasks = len(
-            [task for task in tasks if task.status == TaskStatus.COMPLETED]
-        )
-        completion_percentage = (
-            (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0.0
-        )
-
-        # Add tasks to task_list for response
-        task_list.tasks = tasks
-
-        return {"task_list": task_list, "completion_percentage": completion_percentage}

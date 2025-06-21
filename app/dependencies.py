@@ -1,6 +1,5 @@
 """Dependency injection for the application."""
 
-from functools import lru_cache
 from sqlalchemy.orm import Session
 from fastapi import Depends
 

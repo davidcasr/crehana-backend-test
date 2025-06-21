@@ -9,9 +9,9 @@ from ..application.dtos import (
 from ..application.use_cases.task_list import TaskListUseCases
 from ..dependencies import get_task_list_use_cases
 from ..domain.exceptions import (
-    TaskListNotFoundException,
-    TaskListNameAlreadyExistsException,
-    ValidationError,
+    EntityNotFoundException,
+    InvalidDataException,
+    DuplicateEntityException,
 )
 
 router = APIRouter(prefix="/task-lists", tags=["Task Lists"])
@@ -29,9 +29,9 @@ def create_task_list(
         )
         return TaskListResponse.from_entity(task_list_entity)
 
-    except TaskListNameAlreadyExistsException as e:
+    except DuplicateEntityException as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
-    except ValidationError as e:
+    except InvalidDataException as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         raise HTTPException(
@@ -65,10 +65,10 @@ def get_task_list(
 ):
     """Get a task list by ID."""
     try:
-        task_list_entity = task_list_use_cases.get_task_list(task_list_id)
+        task_list_entity = task_list_use_cases.get_task_list_by_id(task_list_id)
         return TaskListResponse.from_entity(task_list_entity)
 
-    except TaskListNotFoundException as e:
+    except EntityNotFoundException as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except Exception as e:
         raise HTTPException(
@@ -92,11 +92,11 @@ def update_task_list(
         )
         return TaskListResponse.from_entity(task_list_entity)
 
-    except TaskListNotFoundException as e:
+    except EntityNotFoundException as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except TaskListNameAlreadyExistsException as e:
+    except DuplicateEntityException as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
-    except ValidationError as e:
+    except InvalidDataException as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         raise HTTPException(
@@ -114,7 +114,7 @@ def delete_task_list(
     try:
         task_list_use_cases.delete_task_list(task_list_id)
 
-    except TaskListNotFoundException as e:
+    except EntityNotFoundException as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except Exception as e:
         raise HTTPException(

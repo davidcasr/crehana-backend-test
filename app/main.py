@@ -54,7 +54,7 @@ app.include_router(task_lists_router, prefix="/api/v1")
 app.include_router(tasks_router, prefix="/api/v1")
 
 
-@app.get("/")
+@app.get("/", tags=["Health"])
 async def root():
     """Health check endpoint."""
     return {
@@ -64,7 +64,7 @@ async def root():
     }
 
 
-@app.get("/health")
+@app.get("/health", tags=["Health"])
 async def health_check():
     """Detailed health check endpoint."""
     # Check database connectivity

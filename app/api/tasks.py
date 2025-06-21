@@ -11,15 +11,13 @@ from ..application.dtos import (
     UserResponse,
 )
 from ..application.use_cases.task import TaskUseCases
+from ..application.use_cases.task_list import TaskListUseCases
 from ..application.use_cases.user import UserUseCases
-from ..dependencies import get_task_use_cases, get_user_use_cases
+from ..dependencies import get_task_use_cases, get_task_list_use_cases, get_user_use_cases
 from ..domain.exceptions import (
     EntityNotFoundException,
-    TaskListNotFoundException,
-    TaskNotFoundException,
-    TaskTitleAlreadyExistsException,
-    InvalidDueDateException,
-    ValidationError,
+    InvalidDataException,
+    DuplicateEntityException,
 )
 from ..domain.models.enums import TaskStatus, TaskPriority
 
@@ -72,15 +70,11 @@ def create_task(
         )
         return TaskResponse.from_entity(task_entity, assigned_user)
 
-    except TaskListNotFoundException as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except EntityNotFoundException as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except TaskTitleAlreadyExistsException as e:
+    except DuplicateEntityException as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
-    except InvalidDueDateException as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    except ValidationError as e:
+    except InvalidDataException as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         raise HTTPException(
@@ -92,8 +86,9 @@ def create_task(
 @router.get("/{task_list_id}/tasks/", response_model=TasksWithStatsResponse)
 def get_tasks_by_list(
     task_list_id: int,
-    status: Optional[TaskStatus] = Query(
+    task_status: Optional[TaskStatus] = Query(
         None,
+        alias="status",
         description="Filter by task status. Available values: pending, in_progress, completed, cancelled",
     ),
     priority: Optional[TaskPriority] = Query(
@@ -105,6 +100,7 @@ def get_tasks_by_list(
         description="Filter by assigned user ID",
     ),
     task_use_cases: TaskUseCases = Depends(get_task_use_cases),
+    task_list_use_cases: TaskListUseCases = Depends(get_task_list_use_cases),
     user_use_cases: UserUseCases = Depends(get_user_use_cases),
 ):
     """
@@ -141,7 +137,7 @@ def get_tasks_by_list(
         # Get filtered tasks
         tasks = task_use_cases.get_tasks_by_list_id(
             task_list_id=task_list_id, 
-            status=status, 
+            status=task_status, 
             priority=priority,
             assigned_user_id=assigned_user_id
         )
@@ -176,10 +172,10 @@ def get_tasks_by_list(
         
         return response_data
 
-    except TaskListNotFoundException as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except EntityNotFoundException as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except InvalidDataException as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -216,8 +212,10 @@ def get_task(
 
         return TaskResponse.from_entity(task_entity, assigned_user)
 
-    except TaskNotFoundException as e:
+    except EntityNotFoundException as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except InvalidDataException as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -280,15 +278,11 @@ def update_task(
                 
         return TaskResponse.from_entity(task_entity, assigned_user)
 
-    except TaskNotFoundException as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except EntityNotFoundException as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except TaskTitleAlreadyExistsException as e:
+    except DuplicateEntityException as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
-    except InvalidDueDateException as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    except ValidationError as e:
+    except InvalidDataException as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         raise HTTPException(
@@ -336,8 +330,10 @@ def update_task_status(
                 
         return TaskResponse.from_entity(task_entity, assigned_user)
 
-    except TaskNotFoundException as e:
+    except EntityNotFoundException as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except InvalidDataException as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -384,10 +380,10 @@ def assign_task_to_user(
                 
         return TaskResponse.from_entity(task_entity, assigned_user)
 
-    except TaskNotFoundException as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except EntityNotFoundException as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except InvalidDataException as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -415,7 +411,7 @@ def delete_task(
 
         task_use_cases.delete_task(task_id)
 
-    except TaskNotFoundException as e:
+    except EntityNotFoundException as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except Exception as e:
         raise HTTPException(
@@ -449,6 +445,8 @@ def get_tasks_by_user(
 
     except EntityNotFoundException as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except InvalidDataException as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
