@@ -13,7 +13,11 @@ from ..application.dtos import (
 from ..application.use_cases.task import TaskUseCases
 from ..application.use_cases.task_list import TaskListUseCases
 from ..application.use_cases.user import UserUseCases
-from ..dependencies import get_task_use_cases, get_task_list_use_cases, get_user_use_cases
+from ..dependencies import (
+    get_task_use_cases,
+    get_task_list_use_cases,
+    get_user_use_cases,
+)
 from ..domain.exceptions import (
     EntityNotFoundException,
     InvalidDataException,
@@ -32,11 +36,11 @@ router = APIRouter(prefix="/task-lists", tags=["Tasks"])
     status_code=status.HTTP_201_CREATED,
 )
 def create_task(
-    task_list_id: int, 
-    request: TaskCreateRequest, 
+    task_list_id: int,
+    request: TaskCreateRequest,
     task_use_cases: TaskUseCases = Depends(get_task_use_cases),
     user_use_cases: UserUseCases = Depends(get_user_use_cases),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Create a new task in a task list.
@@ -62,7 +66,7 @@ def create_task(
         assigned_user = None
         if request.assigned_user_id:
             assigned_user = user_use_cases.get_user_by_id(request.assigned_user_id)
-        
+
         task_entity = task_use_cases.create_task(
             title=request.title,
             description=request.description,
@@ -82,7 +86,7 @@ def create_task(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-           detail=str(e),
+            detail=str(e),
         )
 
 
@@ -105,7 +109,7 @@ def get_tasks_by_list(
     task_use_cases: TaskUseCases = Depends(get_task_use_cases),
     task_list_use_cases: TaskListUseCases = Depends(get_task_list_use_cases),
     user_use_cases: UserUseCases = Depends(get_user_use_cases),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get all tasks for a task list with optional filters and completion statistics.
@@ -137,21 +141,25 @@ def get_tasks_by_list(
     try:
         # Get task list information
         task_list = task_list_use_cases.get_task_list_by_id(task_list_id)
-        
+
         # Get filtered tasks
         tasks = task_use_cases.get_tasks_by_list_id(
-            task_list_id=task_list_id, 
-            status=task_status, 
+            task_list_id=task_list_id,
+            status=task_status,
             priority=priority,
-            assigned_user_id=assigned_user_id
+            assigned_user_id=assigned_user_id,
         )
-        
+
         # Get all tasks for completion percentage calculation
         all_tasks = task_use_cases.get_tasks_by_list_id(task_list_id)
         total_tasks = len(all_tasks)
-        completed_tasks = len([t for t in all_tasks if t.status == TaskStatus.COMPLETED])
-        completion_percentage = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0.0
-        
+        completed_tasks = len(
+            [t for t in all_tasks if t.status == TaskStatus.COMPLETED]
+        )
+        completion_percentage = (
+            (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0.0
+        )
+
         # Get assigned users for tasks that have them
         tasks_with_users = []
         for task in tasks:
@@ -163,17 +171,17 @@ def get_tasks_by_list(
                     # User might have been deleted, continue without user info
                     pass
             tasks_with_users.append(TaskResponse.from_entity(task, assigned_user))
-        
+
         # Create custom response with user information
         response_data = TasksWithStatsResponse.from_tasks_and_task_list(
             tasks=tasks,
             task_list=task_list,
             completion_percentage=completion_percentage,
         )
-        
+
         # Replace tasks with ones that include user information
         response_data.tasks = tasks_with_users
-        
+
         return response_data
 
     except EntityNotFoundException as e:
@@ -189,11 +197,11 @@ def get_tasks_by_list(
 
 @router.get("/{task_list_id}/tasks/{task_id}", response_model=TaskResponse)
 def get_task(
-    task_list_id: int, 
-    task_id: int, 
+    task_list_id: int,
+    task_id: int,
     task_use_cases: TaskUseCases = Depends(get_task_use_cases),
     user_use_cases: UserUseCases = Depends(get_user_use_cases),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Get a task by ID including assigned user information."""
     try:
@@ -210,7 +218,9 @@ def get_task(
         assigned_user = None
         if task_entity.assigned_user_id:
             try:
-                assigned_user = user_use_cases.get_user_by_id(task_entity.assigned_user_id)
+                assigned_user = user_use_cases.get_user_by_id(
+                    task_entity.assigned_user_id
+                )
             except EntityNotFoundException:
                 # User might have been deleted, continue without user info
                 pass
@@ -235,7 +245,7 @@ def update_task(
     request: TaskUpdateRequest,
     task_use_cases: TaskUseCases = Depends(get_task_use_cases),
     user_use_cases: UserUseCases = Depends(get_user_use_cases),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Update a task.
@@ -273,15 +283,17 @@ def update_task(
             due_date=request.due_date,
             assigned_user_id=request.assigned_user_id,
         )
-        
+
         # Get assigned user if exists
         assigned_user = None
         if task_entity.assigned_user_id:
             try:
-                assigned_user = user_use_cases.get_user_by_id(task_entity.assigned_user_id)
+                assigned_user = user_use_cases.get_user_by_id(
+                    task_entity.assigned_user_id
+                )
             except EntityNotFoundException:
                 pass
-                
+
         return TaskResponse.from_entity(task_entity, assigned_user)
 
     except EntityNotFoundException as e:
@@ -304,7 +316,7 @@ def update_task_status(
     request: TaskStatusUpdateRequest,
     task_use_cases: TaskUseCases = Depends(get_task_use_cases),
     user_use_cases: UserUseCases = Depends(get_user_use_cases),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Update task status.
@@ -326,15 +338,17 @@ def update_task_status(
             )
 
         task_entity = task_use_cases.update_task_status(task_id, request.status)
-        
+
         # Get assigned user if exists
         assigned_user = None
         if task_entity.assigned_user_id:
             try:
-                assigned_user = user_use_cases.get_user_by_id(task_entity.assigned_user_id)
+                assigned_user = user_use_cases.get_user_by_id(
+                    task_entity.assigned_user_id
+                )
             except EntityNotFoundException:
                 pass
-                
+
         return TaskResponse.from_entity(task_entity, assigned_user)
 
     except EntityNotFoundException as e:
@@ -355,7 +369,7 @@ def assign_task_to_user(
     request: TaskAssignmentRequest,
     task_use_cases: TaskUseCases = Depends(get_task_use_cases),
     user_use_cases: UserUseCases = Depends(get_user_use_cases),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Assign or unassign a task to a user.
@@ -376,16 +390,20 @@ def assign_task_to_user(
                 detail=f"Task {task_id} not found in task list {task_list_id}",
             )
 
-        task_entity = task_use_cases.assign_task_to_user(task_id, request.assigned_user_id)
-        
+        task_entity = task_use_cases.assign_task_to_user(
+            task_id, request.assigned_user_id
+        )
+
         # Get assigned user if exists
         assigned_user = None
         if task_entity.assigned_user_id:
             try:
-                assigned_user = user_use_cases.get_user_by_id(task_entity.assigned_user_id)
+                assigned_user = user_use_cases.get_user_by_id(
+                    task_entity.assigned_user_id
+                )
             except EntityNotFoundException:
                 pass
-                
+
         return TaskResponse.from_entity(task_entity, assigned_user)
 
     except EntityNotFoundException as e:
@@ -403,10 +421,10 @@ def assign_task_to_user(
     "/{task_list_id}/tasks/{task_id}", status_code=status.HTTP_204_NO_CONTENT
 )
 def delete_task(
-    task_list_id: int, 
-    task_id: int, 
+    task_list_id: int,
+    task_id: int,
     task_use_cases: TaskUseCases = Depends(get_task_use_cases),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Delete a task."""
     try:
@@ -435,21 +453,21 @@ def get_tasks_by_user(
     user_id: int,
     task_use_cases: TaskUseCases = Depends(get_task_use_cases),
     user_use_cases: UserUseCases = Depends(get_user_use_cases),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get all tasks assigned to a specific user across all task lists.
-    
+
     **Path Parameters:**
     - **user_id**: ID of the user whose tasks to retrieve
-    
+
     **Business Rules:**
     - User must exist
     """
     try:
         # Verify user exists
         user = user_use_cases.get_user_by_id(user_id)
-        
+
         tasks = task_use_cases.get_tasks_by_user_id(user_id)
         return [TaskResponse.from_entity(task, user) for task in tasks]
 
@@ -462,4 +480,3 @@ def get_tasks_by_user(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error",
         )
- 

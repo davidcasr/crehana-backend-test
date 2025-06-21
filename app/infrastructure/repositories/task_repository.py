@@ -28,11 +28,11 @@ class SQLTaskRepository(TaskRepository):
             created_at=task.created_at,
             updated_at=task.updated_at,
         )
-        
+
         self.db.add(db_task)
         self.db.commit()
         self.db.refresh(db_task)
-        
+
         return self._to_domain(db_task)
 
     def get_by_id(self, task_id: int) -> Optional[Task]:
@@ -42,33 +42,39 @@ class SQLTaskRepository(TaskRepository):
 
     def get_by_task_list_id(self, task_list_id: int) -> List[Task]:
         """Get all tasks for a specific task list."""
-        db_tasks = self.db.query(TaskModel).filter(TaskModel.task_list_id == task_list_id).all()
+        db_tasks = (
+            self.db.query(TaskModel)
+            .filter(TaskModel.task_list_id == task_list_id)
+            .all()
+        )
         return [self._to_domain(db_task) for db_task in db_tasks]
 
     def get_by_assigned_user_id(self, user_id: int) -> List[Task]:
         """Get all tasks assigned to a specific user."""
-        db_tasks = self.db.query(TaskModel).filter(TaskModel.assigned_user_id == user_id).all()
+        db_tasks = (
+            self.db.query(TaskModel).filter(TaskModel.assigned_user_id == user_id).all()
+        )
         return [self._to_domain(db_task) for db_task in db_tasks]
 
     def get_filtered_tasks(
-        self, 
-        task_list_id: int, 
+        self,
+        task_list_id: int,
         status: Optional[TaskStatus] = None,
         priority: Optional[TaskPriority] = None,
-        assigned_user_id: Optional[int] = None
+        assigned_user_id: Optional[int] = None,
     ) -> List[Task]:
         """Get filtered tasks for a task list."""
         query = self.db.query(TaskModel).filter(TaskModel.task_list_id == task_list_id)
-        
+
         if status:
             query = query.filter(TaskModel.status == status.value)
-        
+
         if priority:
             query = query.filter(TaskModel.priority == priority.value)
-        
+
         if assigned_user_id:
             query = query.filter(TaskModel.assigned_user_id == assigned_user_id)
-        
+
         db_tasks = query.all()
         return [self._to_domain(db_task) for db_task in db_tasks]
 
@@ -88,7 +94,7 @@ class SQLTaskRepository(TaskRepository):
 
         self.db.commit()
         self.db.refresh(db_task)
-        
+
         return self._to_domain(db_task)
 
     def delete(self, task_id: int) -> bool:
@@ -112,7 +118,7 @@ class SQLTaskRepository(TaskRepository):
 
         self.db.commit()
         self.db.refresh(db_task)
-        
+
         return self._to_domain(db_task)
 
     def assign_user(self, task_id: int, user_id: Optional[int]) -> Task:
@@ -126,19 +132,20 @@ class SQLTaskRepository(TaskRepository):
 
         self.db.commit()
         self.db.refresh(db_task)
-        
+
         return self._to_domain(db_task)
 
-    def exists_by_title_in_list(self, title: str, task_list_id: int, exclude_id: Optional[int] = None) -> bool:
+    def exists_by_title_in_list(
+        self, title: str, task_list_id: int, exclude_id: Optional[int] = None
+    ) -> bool:
         """Check if a task exists by title in a specific list."""
         query = self.db.query(TaskModel).filter(
-            TaskModel.title == title,
-            TaskModel.task_list_id == task_list_id
+            TaskModel.title == title, TaskModel.task_list_id == task_list_id
         )
-        
+
         if exclude_id:
             query = query.filter(TaskModel.id != exclude_id)
-        
+
         return query.first() is not None
 
     def _to_domain(self, db_task: TaskModel) -> Task:
@@ -155,4 +162,3 @@ class SQLTaskRepository(TaskRepository):
             created_at=db_task.created_at,
             updated_at=db_task.updated_at,
         )
- 

@@ -15,24 +15,21 @@ logger = logging.getLogger(__name__)
 
 class EmailService(ABC):
     """Abstract base class for email services."""
-    
+
     @abstractmethod
     def send_task_assignment_email(
-        self, 
-        user: User, 
-        task: Task, 
+        self,
+        user: User,
+        task: Task,
         task_list: TaskList,
-        assigned_by: Optional[User] = None
+        assigned_by: Optional[User] = None,
     ) -> bool:
         """Send email notification when a task is assigned to a user."""
         pass
-    
+
     @abstractmethod
     def send_task_completion_email(
-        self, 
-        user: User, 
-        task: Task, 
-        task_list: TaskList
+        self, user: User, task: Task, task_list: TaskList
     ) -> bool:
         """Send email notification when a task is completed."""
         pass
@@ -40,25 +37,25 @@ class EmailService(ABC):
 
 class MockEmailService(EmailService):
     """Mock email service for development and testing."""
-    
+
     def __init__(self):
         self.sent_emails = []  # Para testing/debugging
-    
+
     def send_task_assignment_email(
-        self, 
-        user: User, 
-        task: Task, 
+        self,
+        user: User,
+        task: Task,
         task_list: TaskList,
-        assigned_by: Optional[User] = None
+        assigned_by: Optional[User] = None,
     ) -> bool:
         """Simulate sending task assignment email."""
         try:
             # Crear el contenido del email
             subject = f"📋 Nueva tarea asignada: {task.title}"
-            
+
             # Determinar quién asignó la tarea
             assigned_by_text = f" por {assigned_by.full_name}" if assigned_by else ""
-            
+
             # Crear el cuerpo del email
             email_body = f"""
             ╔══════════════════════════════════════════════════════════════╗
@@ -81,18 +78,18 @@ class MockEmailService(EmailService):
             ║                                                              ║
             ╚══════════════════════════════════════════════════════════════╝
             """
-            
+
             # Simular envío del email
-            print("\n" + "="*80)
+            print("\n" + "=" * 80)
             print("📧 EMAIL ENVIADO (SIMULACIÓN)")
-            print("="*80)
+            print("=" * 80)
             print(f"📨 Para: {user.email} ({user.full_name})")
             print(f"📋 Asunto: {subject}")
             print(f"🕐 Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
             print("\n📄 CONTENIDO:")
             print(email_body)
-            print("="*80)
-            
+            print("=" * 80)
+
             # Guardar email para debugging
             email_record = {
                 "timestamp": datetime.now(),
@@ -104,27 +101,26 @@ class MockEmailService(EmailService):
                 "task_title": task.title,
                 "task_list": task_list.name,
                 "assigned_by": assigned_by.full_name if assigned_by else None,
-                "status": "sent"
+                "status": "sent",
             }
             self.sent_emails.append(email_record)
-            
-            logger.info(f"✅ Email de asignación enviado a {user.email} para tarea '{task.title}'")
+
+            logger.info(
+                f"✅ Email de asignación enviado a {user.email} para tarea '{task.title}'"
+            )
             return True
-            
+
         except Exception as e:
             logger.error(f"❌ Error enviando email de asignación: {str(e)}")
             return False
-    
+
     def send_task_completion_email(
-        self, 
-        user: User, 
-        task: Task, 
-        task_list: TaskList
+        self, user: User, task: Task, task_list: TaskList
     ) -> bool:
         """Simulate sending task completion email."""
         try:
             subject = f"✅ Tarea completada: {task.title}"
-            
+
             email_body = f"""
             ╔══════════════════════════════════════════════════════════════╗
             ║                    🎉 TAREA COMPLETADA                       ║
@@ -143,17 +139,17 @@ class MockEmailService(EmailService):
             ║                                                              ║
             ╚══════════════════════════════════════════════════════════════╝
             """
-            
-            print("\n" + "="*80)
+
+            print("\n" + "=" * 80)
             print("📧 EMAIL ENVIADO (SIMULACIÓN)")
-            print("="*80)
+            print("=" * 80)
             print(f"📨 Para: {user.email} ({user.full_name})")
             print(f"📋 Asunto: {subject}")
             print(f"🕐 Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
             print("\n📄 CONTENIDO:")
             print(email_body)
-            print("="*80)
-            
+            print("=" * 80)
+
             # Guardar email para debugging
             email_record = {
                 "timestamp": datetime.now(),
@@ -164,21 +160,23 @@ class MockEmailService(EmailService):
                 "task_id": task.id,
                 "task_title": task.title,
                 "task_list": task_list.name,
-                "status": "sent"
+                "status": "sent",
             }
             self.sent_emails.append(email_record)
-            
-            logger.info(f"✅ Email de completación enviado a {user.email} para tarea '{task.title}'")
+
+            logger.info(
+                f"✅ Email de completación enviado a {user.email} para tarea '{task.title}'"
+            )
             return True
-            
+
         except Exception as e:
             logger.error(f"❌ Error enviando email de completación: {str(e)}")
             return False
-    
+
     def get_sent_emails(self) -> list:
         """Get list of sent emails for debugging/testing."""
         return self.sent_emails
-    
+
     def clear_sent_emails(self):
         """Clear sent emails list."""
         self.sent_emails.clear()
@@ -190,4 +188,4 @@ email_service = MockEmailService()
 
 def get_email_service() -> EmailService:
     """Get the email service instance."""
-    return email_service 
+    return email_service

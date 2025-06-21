@@ -11,16 +11,22 @@ class UserCreateRequest(BaseModel):
 
     username: str = Field(..., min_length=3, max_length=50, description="Username")
     email: str = Field(..., max_length=100, description="User email")
-    full_name: str = Field(..., min_length=1, max_length=100, description="User full name")
+    full_name: str = Field(
+        ..., min_length=1, max_length=100, description="User full name"
+    )
     status: UserStatus = Field(default=UserStatus.ACTIVE, description="User status")
 
 
 class UserUpdateRequest(BaseModel):
     """Request DTO for updating a user."""
 
-    username: Optional[str] = Field(None, min_length=3, max_length=50, description="Username")
+    username: Optional[str] = Field(
+        None, min_length=3, max_length=50, description="Username"
+    )
     email: Optional[str] = Field(None, max_length=100, description="User email")
-    full_name: Optional[str] = Field(None, min_length=1, max_length=100, description="User full name")
+    full_name: Optional[str] = Field(
+        None, min_length=1, max_length=100, description="User full name"
+    )
     status: Optional[UserStatus] = Field(None, description="User status")
 
 
@@ -109,7 +115,9 @@ class TaskCreateRequest(BaseModel):
         default=TaskPriority.MEDIUM, description="Task priority"
     )
     due_date: Optional[datetime] = Field(None, description="Task due date")
-    assigned_user_id: Optional[int] = Field(None, description="ID of the user assigned to this task")
+    assigned_user_id: Optional[int] = Field(
+        None, description="ID of the user assigned to this task"
+    )
 
 
 class TaskUpdateRequest(BaseModel):
@@ -124,7 +132,9 @@ class TaskUpdateRequest(BaseModel):
     status: Optional[TaskStatus] = Field(None, description="Task status")
     priority: Optional[TaskPriority] = Field(None, description="Task priority")
     due_date: Optional[datetime] = Field(None, description="Task due date")
-    assigned_user_id: Optional[int] = Field(None, description="ID of the user assigned to this task")
+    assigned_user_id: Optional[int] = Field(
+        None, description="ID of the user assigned to this task"
+    )
 
 
 class TaskResponse(BaseModel):
@@ -157,7 +167,9 @@ class TaskResponse(BaseModel):
             due_date=task.due_date,
             task_list_id=task.task_list_id,
             assigned_user_id=task.assigned_user_id,
-            assigned_user=UserResponse.from_entity(assigned_user) if assigned_user else None,
+            assigned_user=(
+                UserResponse.from_entity(assigned_user) if assigned_user else None
+            ),
             created_at=task.created_at,
             updated_at=task.updated_at,
         )
@@ -197,7 +209,9 @@ class TaskFilterRequest(BaseModel):
     priority: Optional[TaskPriority] = Field(
         None, description="Filter by task priority"
     )
-    assigned_user_id: Optional[int] = Field(None, description="Filter by assigned user ID")
+    assigned_user_id: Optional[int] = Field(
+        None, description="Filter by assigned user ID"
+    )
 
 
 class TaskStatusUpdateRequest(BaseModel):
@@ -209,7 +223,9 @@ class TaskStatusUpdateRequest(BaseModel):
 class TaskAssignmentRequest(BaseModel):
     """Request DTO for assigning/unassigning a user to a task."""
 
-    assigned_user_id: Optional[int] = Field(None, description="ID of the user to assign (null to unassign)")
+    assigned_user_id: Optional[int] = Field(
+        None, description="ID of the user to assign (null to unassign)"
+    )
 
 
 class TasksWithStatsResponse(BaseModel):
@@ -242,12 +258,14 @@ class TasksWithStatsResponse(BaseModel):
 # Authentication DTOs
 class LoginRequest(BaseModel):
     """Request DTO for user login."""
+
     username: str = Field(..., description="Username or email")
     password: str = Field(..., min_length=6, description="User password")
 
 
 class LoginResponse(BaseModel):
     """Response DTO for user login."""
+
     access_token: str = Field(..., description="JWT access token")
     token_type: str = Field(default="bearer", description="Token type")
     user: UserResponse = Field(..., description="User information")
@@ -255,13 +273,17 @@ class LoginResponse(BaseModel):
 
 class RegisterRequest(BaseModel):
     """Request DTO for user registration."""
+
     username: str = Field(..., min_length=3, max_length=50, description="Username")
     email: str = Field(..., max_length=100, description="User email")
-    full_name: str = Field(..., min_length=1, max_length=100, description="User full name")
+    full_name: str = Field(
+        ..., min_length=1, max_length=100, description="User full name"
+    )
     password: str = Field(..., min_length=6, description="User password")
 
 
 class ChangePasswordRequest(BaseModel):
     """Request DTO for changing password."""
+
     current_password: str = Field(..., description="Current password")
     new_password: str = Field(..., min_length=6, description="New password")

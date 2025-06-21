@@ -7,10 +7,13 @@ from .enums import TaskStatus, TaskPriority, UserStatus
 
 class User(BaseModel):
     """User entity."""
+
     id: Optional[int] = None
     username: str = Field(..., min_length=3, max_length=50, description="Username")
     email: str = Field(..., max_length=100, description="User email")
-    full_name: str = Field(..., min_length=1, max_length=100, description="User full name")
+    full_name: str = Field(
+        ..., min_length=1, max_length=100, description="User full name"
+    )
     password_hash: Optional[str] = Field(None, description="Hashed password")
     status: UserStatus = Field(default=UserStatus.ACTIVE, description="User status")
     created_at: Optional[datetime] = None
@@ -52,7 +55,9 @@ class Task(BaseModel):
     task_list_id: int = Field(
         ..., description="ID of the task list this task belongs to"
     )
-    assigned_user_id: Optional[int] = Field(None, description="ID of the user assigned to this task")
+    assigned_user_id: Optional[int] = Field(
+        None, description="ID of the user assigned to this task"
+    )
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 

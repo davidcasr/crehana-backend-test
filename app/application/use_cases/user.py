@@ -38,7 +38,9 @@ class UserUseCases:
 
         # Check for duplicates
         if self.user_repository.exists_by_username(username.strip()):
-            raise DuplicateEntityException(f"User with username '{username}' already exists")
+            raise DuplicateEntityException(
+                f"User with username '{username}' already exists"
+            )
 
         if self.user_repository.exists_by_email(email.strip().lower()):
             raise DuplicateEntityException(f"User with email '{email}' already exists")
@@ -109,26 +111,36 @@ class UserUseCases:
         # Validate and set new values
         if username is not None:
             if len(username.strip()) < 3:
-                raise InvalidDataException("Username must be at least 3 characters long")
-            
-            if self.user_repository.exists_by_username(username.strip(), exclude_id=user_id):
-                raise DuplicateEntityException(f"User with username '{username}' already exists")
-            
+                raise InvalidDataException(
+                    "Username must be at least 3 characters long"
+                )
+
+            if self.user_repository.exists_by_username(
+                username.strip(), exclude_id=user_id
+            ):
+                raise DuplicateEntityException(
+                    f"User with username '{username}' already exists"
+                )
+
             user.username = username.strip()
 
         if email is not None:
             if "@" not in email:
                 raise InvalidDataException("Invalid email format")
-            
-            if self.user_repository.exists_by_email(email.strip().lower(), exclude_id=user_id):
-                raise DuplicateEntityException(f"User with email '{email}' already exists")
-            
+
+            if self.user_repository.exists_by_email(
+                email.strip().lower(), exclude_id=user_id
+            ):
+                raise DuplicateEntityException(
+                    f"User with email '{email}' already exists"
+                )
+
             user.email = email.strip().lower()
 
         if full_name is not None:
             if len(full_name.strip()) < 1:
                 raise InvalidDataException("Full name cannot be empty")
-            
+
             user.full_name = full_name.strip()
 
         if status is not None:
@@ -181,4 +193,4 @@ class UserUseCases:
         except (EntityNotFoundException, InvalidDataException):
             pass
 
-        return None 
+        return None

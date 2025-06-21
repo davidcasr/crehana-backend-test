@@ -42,7 +42,9 @@ def get_task_use_cases(
     email_service: EmailService = Depends(get_email_service),
 ) -> TaskUseCases:
     """Get task use cases with dependency injection."""
-    return TaskUseCases(task_repository, task_list_repository, user_repository, email_service)
+    return TaskUseCases(
+        task_repository, task_list_repository, user_repository, email_service
+    )
 
 
 def get_user_use_cases(

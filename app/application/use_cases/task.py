@@ -46,7 +46,7 @@ class TaskUseCases:
 
         if task_list_id <= 0:
             raise InvalidDataException("Task list ID must be positive")
-   
+
         # Verify task list exists
         task_list = self.task_list_repository.get_by_id(task_list_id)
         if not task_list:
@@ -63,10 +63,12 @@ class TaskUseCases:
         if assigned_user_id is not None:
             if assigned_user_id <= 0:
                 raise InvalidDataException("Assigned user ID must be positive")
-            
+
             assigned_user = self.user_repository.get_by_id(assigned_user_id)
             if not assigned_user:
-                raise EntityNotFoundException(f"User with id {assigned_user_id} not found")
+                raise EntityNotFoundException(
+                    f"User with id {assigned_user_id} not found"
+                )
 
         # Create task entity
         now = datetime.utcnow()
@@ -89,9 +91,7 @@ class TaskUseCases:
         if assigned_user:
             try:
                 self.email_service.send_task_assignment_email(
-                    user=assigned_user,
-                    task=created_task,
-                    task_list=task_list
+                    user=assigned_user, task=created_task, task_list=task_list
                 )
             except Exception as e:
                 # Log error but don't fail the task creation
@@ -130,10 +130,12 @@ class TaskUseCases:
         if assigned_user_id is not None:
             if assigned_user_id <= 0:
                 raise InvalidDataException("Assigned user ID must be positive")
-            
+
             user = self.user_repository.get_by_id(assigned_user_id)
             if not user:
-                raise EntityNotFoundException(f"User with id {assigned_user_id} not found")
+                raise EntityNotFoundException(
+                    f"User with id {assigned_user_id} not found"
+                )
 
         return self.task_repository.get_filtered_tasks(
             task_list_id, status, priority, assigned_user_id
@@ -168,7 +170,7 @@ class TaskUseCases:
         if title is not None:
             if len(title.strip()) < 1:
                 raise InvalidDataException("Task title cannot be empty")
-            
+
             # Check for duplicate title in the same list (excluding current task)
             if self.task_repository.exists_by_title_in_list(
                 title.strip(), task.task_list_id, exclude_id=task_id
@@ -176,13 +178,13 @@ class TaskUseCases:
                 raise DuplicateEntityException(
                     f"Task with title '{title}' already exists in this list"
                 )
-            
+
             task.title = title.strip()
 
         if description is not None:
             if len(description.strip()) < 1:
                 raise InvalidDataException("Task description cannot be empty")
-            
+
             task.description = description.strip()
 
         if priority is not None:
@@ -195,11 +197,13 @@ class TaskUseCases:
         if assigned_user_id is not None:
             if assigned_user_id <= 0:
                 raise InvalidDataException("Assigned user ID must be positive")
-            
+
             user = self.user_repository.get_by_id(assigned_user_id)
             if not user:
-                raise EntityNotFoundException(f"User with id {assigned_user_id} not found")
-            
+                raise EntityNotFoundException(
+                    f"User with id {assigned_user_id} not found"
+                )
+
             task.assigned_user_id = assigned_user_id
 
         task.updated_at = datetime.utcnow()
@@ -218,7 +222,7 @@ class TaskUseCases:
         # Get task and task list information
         task = self.get_task_by_id(task_id)
         task_list = self.task_list_repository.get_by_id(task.task_list_id)
-        
+
         # Store old assigned user for comparison
         old_assigned_user_id = task.assigned_user_id
 
@@ -227,7 +231,7 @@ class TaskUseCases:
         if user_id is not None:
             if user_id <= 0:
                 raise InvalidDataException("User ID must be positive")
-            
+
             assigned_user = self.user_repository.get_by_id(user_id)
             if not assigned_user:
                 raise EntityNotFoundException(f"User with id {user_id} not found")
@@ -239,9 +243,7 @@ class TaskUseCases:
         if assigned_user and old_assigned_user_id != user_id:
             try:
                 self.email_service.send_task_assignment_email(
-                    user=assigned_user,
-                    task=updated_task,
-                    task_list=task_list
+                    user=assigned_user, task=updated_task, task_list=task_list
                 )
             except Exception as e:
                 # Log error but don't fail the assignment
@@ -263,4 +265,3 @@ class TaskUseCases:
     def reopen_task(self, task_id: int) -> Task:
         """Reopen a completed task."""
         return self.update_task_status(task_id, TaskStatus.PENDING)
- 

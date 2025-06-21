@@ -16,7 +16,9 @@ class TaskListUseCases:
     def __init__(self, task_list_repository: TaskListRepository):
         self.task_list_repository = task_list_repository
 
-    def create_task_list(self, name: str, description: Optional[str] = None) -> TaskList:
+    def create_task_list(
+        self, name: str, description: Optional[str] = None
+    ) -> TaskList:
         """Create a new task list."""
         # Validate input
         if not name or len(name.strip()) < 1:
@@ -24,7 +26,9 @@ class TaskListUseCases:
 
         # Check for duplicate name
         if self.task_list_repository.exists_by_name(name.strip()):
-            raise DuplicateEntityException(f"Task list with name '{name}' already exists")
+            raise DuplicateEntityException(
+                f"Task list with name '{name}' already exists"
+            )
 
         # Create task list entity
         now = datetime.utcnow()
@@ -66,11 +70,15 @@ class TaskListUseCases:
         if name is not None:
             if len(name.strip()) < 1:
                 raise InvalidDataException("Task list name cannot be empty")
-            
+
             # Check for duplicate name (excluding current task list)
-            if self.task_list_repository.exists_by_name(name.strip(), exclude_id=task_list_id):
-                raise DuplicateEntityException(f"Task list with name '{name}' already exists")
-            
+            if self.task_list_repository.exists_by_name(
+                name.strip(), exclude_id=task_list_id
+            ):
+                raise DuplicateEntityException(
+                    f"Task list with name '{name}' already exists"
+                )
+
             task_list.name = name.strip()
 
         if description is not None:
@@ -90,5 +98,3 @@ class TaskListUseCases:
         # For now, we'll assume the database constraints will handle this
 
         return self.task_list_repository.delete(task_list_id)
-
-

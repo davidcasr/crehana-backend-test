@@ -20,15 +20,16 @@ from ..domain.models.enums import UserStatus
 router = APIRouter(prefix="/api/v1/users", tags=["Users"])
 
 
-
 @router.get("/", response_model=List[UserResponse])
 def list_users(
-    user_status: Optional[UserStatus] = Query(None, alias="status", description="Filter by user status"),
+    user_status: Optional[UserStatus] = Query(
+        None, alias="status", description="Filter by user status"
+    ),
     user_use_cases: UserUseCases = Depends(get_user_use_cases),
 ):
     """
     Get all users with optional status filter.
-    
+
     - **status**: Filter by user status (active, inactive, suspended)
     """
     try:
@@ -118,7 +119,7 @@ def update_user(
 ):
     """
     Update a user.
-    
+
     - **username**: New username (optional, 3-50 characters, unique)
     - **email**: New email (optional, unique)
     - **full_name**: New full name (optional)
@@ -193,7 +194,7 @@ def delete_user(
 ):
     """
     Delete a user.
-    
+
     **Warning**: This will permanently delete the user and may affect associated tasks.
     """
     try:
@@ -207,4 +208,4 @@ def delete_user(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
-        ) 
+        )

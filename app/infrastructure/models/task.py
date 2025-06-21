@@ -30,7 +30,7 @@ class TaskModel(Base):
     task_list_id = Column(
         Integer, ForeignKey("task_lists.id"), nullable=False, index=True
     )
-    
+
     # Foreign key to assigned user
     assigned_user_id = Column(
         Integer, ForeignKey("users.id"), nullable=True, index=True
@@ -38,7 +38,7 @@ class TaskModel(Base):
 
     # Relationship with task list
     task_list = relationship("TaskListModel", back_populates="tasks")
-    
+
     # Relationship with assigned user
     assigned_user = relationship("UserModel", back_populates="assigned_tasks")
 
